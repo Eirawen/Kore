@@ -170,10 +170,10 @@ def build():
         all_dists.sort()
         best_dist, best_bone, best_group, best_chain_idx, best_t = all_dists[0]
 
-        # BODY PRIORITY: if a body bone is within 2x the closest bone distance,
-        # this vertex belongs to the body, not a leg.
-        # Chitin body plates are large — they win ties against nearby leg coxa bones.
-        if best_group != "body" and body_bone and body_dist < best_dist * 2.5:
+        # BODY PRIORITY: the cephalothorax and abdomen are LARGE rigid plates.
+        # Any vertex within 0.12m of a body bone is body, period.
+        # Otherwise, body wins if within 5x the closest bone distance.
+        if best_group != "body" and body_bone and (body_dist < 0.12 or body_dist < best_dist * 5.0):
             best_bone = body_bone
             best_group = "body"
             best_chain_idx = 0
