@@ -154,20 +154,31 @@ def build():
     for v in mesh.data.vertices:
         v_world = mesh_world @ v.co
 
-        # Step 1: Find closest bone → determines body part
-        best_dist = float("inf")
-        best_bone = None
-        best_t = 0
-        best_group = "body"
-        best_chain_idx = 0
+        # Step 1: Find closest bone per group, with body priority
+        all_dists = []
+        body_dist = float("inf")
+        body_bone = None
+        body_t = 0
         for bname, bh, bt, bgroup, cidx in bone_data:
             d, t = project_onto_bone(v_world, bh, bt)
-            if d < best_dist:
-                best_dist = d
-                best_bone = bname
-                best_t = t
-                best_group = bgroup
-                best_chain_idx = cidx
+            all_dists.append((d, bname, bgroup, cidx, t))
+            if bgroup == "body" and d < body_dist:
+                body_dist = d
+                body_bone = bname
+                body_t = t
+
+        all_dists.sort()
+        best_dist, best_bone, best_group, best_chain_idx, best_t = all_dists[0]
+
+        # BODY PRIORITY: if a body bone is within 2x the closest bone distance,
+        # this vertex belongs to the body, not a leg.
+        # Chitin body plates are large — they win ties against nearby leg coxa bones.
+        if best_group != "body" and body_bone and body_dist < best_dist * 2.5:
+            best_bone = body_bone
+            best_group = "body"
+            best_chain_idx = 0
+            best_t = body_t
+            best_dist = body_dist
 
         # Step 2: Rigid plate or joint membrane?
         chain = bone_chains[best_group]
