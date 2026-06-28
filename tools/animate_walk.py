@@ -15,14 +15,14 @@ CYCLES = 3
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
 
-# v3: gentle — tuned for 3k triangle soup
-COXA_SWING = 6
-FEMUR_LIFT = 10
-TIBIA_BEND = 7
+# v5: sweet spot — visible motion without deformation artifacts
+COXA_SWING = 8
+FEMUR_LIFT = 13
+TIBIA_BEND = 9
 TARSUS_FLEX = 2
 
-BODY_SWAY = 1
-BODY_BOB = 0.8
+BODY_SWAY = 1.2
+BODY_BOB = 1.0
 
 def deg(d):
     return math.radians(d)
