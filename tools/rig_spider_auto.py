@@ -63,37 +63,37 @@ def build():
     add_bone(arm, "abdomen", (-0.087796, 0.099692, 0.052216), (-0.108000, 0.549000, -0.048000), "root")
 
     # Leg FL
-    add_bone(arm, "leg_FL_coxa", (0.696000, -0.855000, -0.297000), (0.527826, -0.645085, -0.219106), "cephalothorax", False)
-    add_bone(arm, "leg_FL_femur", (0.527826, -0.645085, -0.219106), (0.442575, -0.533413, 0.000518), "leg_FL_coxa", True)
-    add_bone(arm, "leg_FL_tibia", (0.442575, -0.533413, 0.000518), (0.214195, -0.292958, 0.139608), "leg_FL_femur", True)
-    add_bone(arm, "leg_FL_tarsus", (0.214195, -0.292958, 0.139608), (0.037313, -0.152623, 0.085042), "leg_FL_tibia", True)
+    add_bone(arm, "leg_FL_coxa", (0.037313, -0.152623, 0.085042), (0.214195, -0.292958, 0.139608), "cephalothorax", False)
+    add_bone(arm, "leg_FL_femur", (0.214195, -0.292958, 0.139608), (0.442575, -0.533413, 0.000518), "leg_FL_coxa", True)
+    add_bone(arm, "leg_FL_tibia", (0.442575, -0.533413, 0.000518), (0.527826, -0.645085, -0.219106), "leg_FL_femur", True)
+    add_bone(arm, "leg_FL_tarsus", (0.527826, -0.645085, -0.219106), (0.696000, -0.855000, -0.297000), "leg_FL_tibia", True)
 
     # Leg FR
-    add_bone(arm, "leg_FR_coxa", (-0.885436, -0.814759, -0.291117), (-0.767792, -0.673644, -0.260669), "cephalothorax", False)
-    add_bone(arm, "leg_FR_femur", (-0.767792, -0.673644, -0.260669), (-0.637462, -0.510697, 0.034383), "leg_FR_coxa", True)
-    add_bone(arm, "leg_FR_tibia", (-0.637462, -0.510697, 0.034383), (-0.393105, -0.257202, 0.130023), "leg_FR_femur", True)
-    add_bone(arm, "leg_FR_tarsus", (-0.393105, -0.257202, 0.130023), (-0.110665, -0.066143, 0.080080), "leg_FR_tibia", True)
+    add_bone(arm, "leg_FR_coxa", (-0.110665, -0.066143, 0.080080), (-0.393105, -0.257202, 0.130023), "cephalothorax", False)
+    add_bone(arm, "leg_FR_femur", (-0.393105, -0.257202, 0.130023), (-0.637462, -0.510697, 0.034383), "leg_FR_coxa", True)
+    add_bone(arm, "leg_FR_tibia", (-0.637462, -0.510697, 0.034383), (-0.767792, -0.673644, -0.260669), "leg_FR_femur", True)
+    add_bone(arm, "leg_FR_tarsus", (-0.767792, -0.673644, -0.260669), (-0.885436, -0.814759, -0.291117), "leg_FR_tibia", True)
 
     # Leg ML
-    add_bone(arm, "leg_ML_coxa", (0.843000, -0.084000, -0.312000), (0.497170, -0.071116, -0.046345), "cephalothorax", False)
-    add_bone(arm, "leg_ML_femur", (0.497170, -0.071116, -0.046345), (0.189643, -0.050649, 0.104349), "leg_ML_coxa", True)
-    add_bone(arm, "leg_ML_tibia", (0.189643, -0.050649, 0.104349), (-0.102573, -0.076757, 0.080433), "leg_ML_femur", True)
+    add_bone(arm, "leg_ML_coxa", (-0.102573, -0.076757, 0.080433), (0.189643, -0.050649, 0.104349), "cephalothorax", False)
+    add_bone(arm, "leg_ML_femur", (0.189643, -0.050649, 0.104349), (0.497170, -0.071116, -0.046345), "leg_ML_coxa", True)
+    add_bone(arm, "leg_ML_tibia", (0.497170, -0.071116, -0.046345), (0.843000, -0.084000, -0.312000), "leg_ML_femur", True)
 
     # Leg MR
-    add_bone(arm, "leg_MR_coxa", (-1.034252, -0.083002, -0.304438), (-0.717268, -0.074263, -0.048832), "cephalothorax", False)
-    add_bone(arm, "leg_MR_femur", (-0.717268, -0.074263, -0.048832), (-0.438069, -0.052527, 0.088706), "leg_MR_coxa", True)
-    add_bone(arm, "leg_MR_tibia", (-0.438069, -0.052527, 0.088706), (-0.110665, -0.066143, 0.080080), "leg_MR_femur", True)
+    add_bone(arm, "leg_MR_coxa", (-0.110665, -0.066143, 0.080080), (-0.438069, -0.052527, 0.088706), "cephalothorax", False)
+    add_bone(arm, "leg_MR_femur", (-0.438069, -0.052527, 0.088706), (-0.717268, -0.074263, -0.048832), "leg_MR_coxa", True)
+    add_bone(arm, "leg_MR_tibia", (-0.717268, -0.074263, -0.048832), (-1.034252, -0.083002, -0.304438), "leg_MR_femur", True)
 
     # Leg RL
-    add_bone(arm, "leg_RL_coxa", (0.638760, 0.827292, -0.311435), (0.568608, 0.540788, -0.249031), "cephalothorax", False)
-    add_bone(arm, "leg_RL_femur", (0.568608, 0.540788, -0.249031), (0.430004, 0.359555, 0.042231), "leg_RL_coxa", True)
-    add_bone(arm, "leg_RL_tibia", (0.430004, 0.359555, 0.042231), (0.152510, 0.266178, 0.165641), "leg_RL_femur", True)
-    add_bone(arm, "leg_RL_tarsus", (0.152510, 0.266178, 0.165641), (-0.105237, 0.193772, 0.058956), "leg_RL_tibia", True)
+    add_bone(arm, "leg_RL_coxa", (-0.105237, 0.193772, 0.058956), (0.152510, 0.266178, 0.165641), "cephalothorax", False)
+    add_bone(arm, "leg_RL_femur", (0.152510, 0.266178, 0.165641), (0.430004, 0.359555, 0.042231), "leg_RL_coxa", True)
+    add_bone(arm, "leg_RL_tibia", (0.430004, 0.359555, 0.042231), (0.568608, 0.540788, -0.249031), "leg_RL_femur", True)
+    add_bone(arm, "leg_RL_tarsus", (0.568608, 0.540788, -0.249031), (0.638760, 0.827292, -0.311435), "leg_RL_tibia", True)
 
     # Leg RR
-    add_bone(arm, "leg_RR_coxa", (-0.864000, 0.852000, -0.312000), (-0.783129, 0.524928, -0.248361), "cephalothorax", False)
-    add_bone(arm, "leg_RR_femur", (-0.783129, 0.524928, -0.248361), (-0.659861, 0.367471, 0.026802), "leg_RR_coxa", True)
-    add_bone(arm, "leg_RR_tibia", (-0.659861, 0.367471, 0.026802), (-0.108641, 0.181001, 0.059200), "leg_RR_femur", True)
+    add_bone(arm, "leg_RR_coxa", (-0.108641, 0.181001, 0.059200), (-0.659861, 0.367471, 0.026802), "cephalothorax", False)
+    add_bone(arm, "leg_RR_femur", (-0.659861, 0.367471, 0.026802), (-0.783129, 0.524928, -0.248361), "leg_RR_coxa", True)
+    add_bone(arm, "leg_RR_tibia", (-0.783129, 0.524928, -0.248361), (-0.864000, 0.852000, -0.312000), "leg_RR_femur", True)
 
     add_bone(arm, "pedipalp_L_base", (-0.126000, -0.138000, 0.093000), (-0.225000, -0.312000, 0.153000), "cephalothorax")
     add_bone(arm, "pedipalp_L_tip", (-0.225000, -0.312000, 0.153000), (-0.267000, -0.516000, 0.114000), "pedipalp_L_base", True)

@@ -500,7 +500,7 @@ bone_names_all = []
 for label in ['FL', 'FR', 'ML', 'MR', 'RL', 'RR']:
     if label not in leg_joints:
         continue
-    joints = leg_joints[label]
+    joints = leg_joints[label][::-1]  # REVERSE: body→foot, not foot→body
     lines.append(f'    # Leg {label}')
     seg_names = ['coxa', 'femur', 'tibia', 'tarsus', 'seg4', 'seg5']
     bone_names_in_leg = []

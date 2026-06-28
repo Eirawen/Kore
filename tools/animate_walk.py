@@ -1,16 +1,9 @@
 """
-Spider Walk Cycle v2 — Fixed Biomechanics
+Spider Walk Cycle v3 — Gentle for 3k mesh
 by Kore
 
-Fixes from v1 (diagnosed via Khaled's temporal grid):
-- Feet now LIFT: femur does the heavy lifting, not tarsus
-- Local bone rotations instead of global X for all bones
-- Bigger angles — v1 was too subtle to see
-- Tarsus barely moves — it's the foot, not the actuator
-
-The lift comes from the FEMUR rotating upward.
-The tibia and tarsus follow through parent-child hierarchy.
-Like lifting your hand by rotating your shoulder, not your wrist.
+Tuned for low-poly: small rotations that don't tear the mesh.
+Proves the pipeline without requiring production geometry.
 """
 
 import bpy
@@ -22,14 +15,14 @@ CYCLES = 3
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
 
-# v2: bigger rotations, femur does the lifting
-COXA_SWING = 12     # forward/back swing (was 8)
-FEMUR_LIFT = 25     # THIS is what lifts the foot off the ground (was 12)
-TIBIA_BEND = 15     # tibia bends during swing (was 10)
-TARSUS_FLEX = 3     # minimal — foot tip, not actuator (was 6)
+# v3: gentle — tuned for 3k triangle soup
+COXA_SWING = 6
+FEMUR_LIFT = 10
+TIBIA_BEND = 7
+TARSUS_FLEX = 2
 
-BODY_SWAY = 2
-BODY_BOB = 1.5
+BODY_SWAY = 1
+BODY_BOB = 0.8
 
 def deg(d):
     return math.radians(d)
@@ -48,8 +41,7 @@ def set_rot(arm, bone_name, frame, rx=0, ry=0, rz=0):
     pb.rotation_euler = (deg(rx), deg(ry), deg(rz))
     pb.keyframe_insert(data_path='rotation_euler', frame=frame)
 
-def animate_leg_swing(arm, leg, base_frame, swing_start, swing_mid, swing_end, stance_end):
-    """Animate one leg's full swing-stance cycle."""
+def animate_leg(arm, leg, swing_start, swing_mid, swing_end, stance_end):
     coxa = f'leg_{leg}_coxa'
     femur = f'leg_{leg}_femur'
     tibia = f'leg_{leg}_tibia'
@@ -57,40 +49,33 @@ def animate_leg_swing(arm, leg, base_frame, swing_start, swing_mid, swing_end, s
 
     side = 1 if leg.endswith('L') else -1
 
-    # Determine which axis to swing on based on leg position
-    # Front legs swing more in Y (forward), mid legs more in Z (lateral), rear legs more in Y (backward)
-    is_front = leg.startswith('F')
-    is_rear = leg.startswith('R')
-    is_mid = leg.startswith('M')
-
-    # === STANCE START (leg is planted, pushing back) ===
-    set_rot(arm, coxa, swing_start, rx=COXA_SWING * 0.3 * side)
+    # STANCE START — leg planted, slightly behind
+    set_rot(arm, coxa, swing_start, ry=COXA_SWING * 0.3 * side)
     set_rot(arm, femur, swing_start, rx=0)
     set_rot(arm, tibia, swing_start, rx=0)
     set_rot(arm, tarsus, swing_start, rx=0)
 
-    # === SWING: LIFT OFF ===
-    # Femur lifts the entire leg — this is what gets feet off the ground
-    lift_frame = swing_start + int((swing_mid - swing_start) * 0.4)
-    set_rot(arm, coxa, lift_frame, rx=0)
-    set_rot(arm, femur, lift_frame, rx=-FEMUR_LIFT * 0.7)
-    set_rot(arm, tibia, lift_frame, rx=TIBIA_BEND * 0.5)
-    set_rot(arm, tarsus, lift_frame, rx=TARSUS_FLEX)
+    # LIFT — femur pulls leg up
+    lift = swing_start + int((swing_mid - swing_start) * 0.5)
+    set_rot(arm, coxa, lift, ry=0)
+    set_rot(arm, femur, lift, rx=-FEMUR_LIFT * 0.6)
+    set_rot(arm, tibia, lift, rx=TIBIA_BEND * 0.4)
+    set_rot(arm, tarsus, lift, rx=TARSUS_FLEX)
 
-    # === SWING: PEAK (max height, reaching forward) ===
-    set_rot(arm, coxa, swing_mid, rx=-COXA_SWING * side)
+    # PEAK — max height, reaching forward
+    set_rot(arm, coxa, swing_mid, ry=-COXA_SWING * 0.5 * side)
     set_rot(arm, femur, swing_mid, rx=-FEMUR_LIFT)
     set_rot(arm, tibia, swing_mid, rx=TIBIA_BEND)
     set_rot(arm, tarsus, swing_mid, rx=TARSUS_FLEX * 0.5)
 
-    # === SWING: PLANT (leg comes down, reaches forward) ===
-    set_rot(arm, coxa, swing_end, rx=-COXA_SWING * 0.5 * side)
+    # PLANT — leg comes down
+    set_rot(arm, coxa, swing_end, ry=-COXA_SWING * 0.3 * side)
     set_rot(arm, femur, swing_end, rx=-FEMUR_LIFT * 0.1)
     set_rot(arm, tibia, swing_end, rx=TIBIA_BEND * 0.1)
-    set_rot(arm, tarsus, swing_end, rx=-TARSUS_FLEX * 0.3)
+    set_rot(arm, tarsus, swing_end, rx=0)
 
-    # === STANCE: planted, slowly pushing backward ===
-    set_rot(arm, coxa, stance_end, rx=COXA_SWING * 0.3 * side)
+    # STANCE — planted, pushes back
+    set_rot(arm, coxa, stance_end, ry=COXA_SWING * 0.3 * side)
     set_rot(arm, femur, stance_end, rx=0)
     set_rot(arm, tibia, stance_end, rx=0)
     set_rot(arm, tarsus, stance_end, rx=0)
@@ -108,52 +93,43 @@ def animate():
     if arm.animation_data and arm.animation_data.action:
         bpy.data.actions.remove(arm.animation_data.action)
 
-    print("Animating spider walk cycle v2...")
-    print(f"  Femur lift: {FEMUR_LIFT}° (this lifts the feet)")
-    print(f"  Coxa swing: {COXA_SWING}°")
-    print(f"  Tarsus flex: {TARSUS_FLEX}° (minimal — not the actuator)")
-
+    print("Walk cycle v3 — gentle for 3k mesh")
     total_frames = CYCLE_FRAMES * CYCLES
     half = CYCLE_FRAMES // 2
 
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
 
-        # Group A swings first half, stance second half
         for leg in GROUP_A:
-            animate_leg_swing(arm, leg,
-                base_frame=base,
+            animate_leg(arm, leg,
                 swing_start=base,
                 swing_mid=base + half // 2,
                 swing_end=base + half,
                 stance_end=base + CYCLE_FRAMES)
 
-        # Group B: stance first half, swings second half
         for leg in GROUP_B:
-            animate_leg_swing(arm, leg,
-                base_frame=base,
+            animate_leg(arm, leg,
                 swing_start=base + half,
                 swing_mid=base + half + half // 2,
                 swing_end=base + CYCLE_FRAMES,
                 stance_end=base + CYCLE_FRAMES + half)
 
-        # Body sway — shift toward planted legs
-        f_q1 = base + half // 2
-        f_q2 = base + half
-        f_q3 = base + half + half // 2
-        f_q4 = base + CYCLE_FRAMES
+        # Body sway
+        q1 = base + half // 2
+        q2 = base + half
+        q3 = base + half + half // 2
+        q4 = base + CYCLE_FRAMES
 
-        set_rot(arm, 'root', base, rx=0, ry=0, rz=0)
-        set_rot(arm, 'root', f_q1, rx=BODY_BOB, ry=0, rz=BODY_SWAY)
-        set_rot(arm, 'root', f_q2, rx=0, ry=0, rz=0)
-        set_rot(arm, 'root', f_q3, rx=BODY_BOB, ry=0, rz=-BODY_SWAY)
-        set_rot(arm, 'root', f_q4, rx=0, ry=0, rz=0)
+        set_rot(arm, 'root', base, rx=0, rz=0)
+        set_rot(arm, 'root', q1, rx=BODY_BOB, rz=BODY_SWAY)
+        set_rot(arm, 'root', q2, rx=0, rz=0)
+        set_rot(arm, 'root', q3, rx=BODY_BOB, rz=-BODY_SWAY)
+        set_rot(arm, 'root', q4, rx=0, rz=0)
 
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = total_frames
     bpy.context.scene.frame_current = 0
 
-    # Set interpolation to smooth
     if arm.animation_data and arm.animation_data.action:
         for fc in arm.animation_data.action.fcurves:
             for kp in fc.keyframe_points:
@@ -161,8 +137,7 @@ def animate():
                 kp.handle_left_type = 'AUTO_CLAMPED'
                 kp.handle_right_type = 'AUTO_CLAMPED'
 
-    print(f"\nWalk cycle v2 created: {total_frames} frames")
-    print("Press Space to play!")
+    print(f"Done: {total_frames} frames. Press Space to play!")
 
 try:
     animate()
