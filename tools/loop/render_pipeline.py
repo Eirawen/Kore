@@ -62,6 +62,7 @@ ANIMATION_SCRIPTS = {
     "walk": WSL_PREFIX + r"\home\khaled\Kore\tools\animate_walk.py",
     "feel": WSL_PREFIX + r"\home\khaled\Kore\tools\animate_feel.py",
     "threat": WSL_PREFIX + r"\home\khaled\Kore\tools\animate_threat.py",
+    "prowl": WSL_PREFIX + r"\home\khaled\Kore\tools\animate_prowl.py",
 }
 
 res_w, res_h = RESOLUTION.split("x")
