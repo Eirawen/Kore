@@ -26,9 +26,26 @@ import shutil
 # CONFIGURATION
 # ============================================================
 
-ANIMATION = os.environ.get("KORE_ANIMATION", "walk")
-CAMERA_VIEW = os.environ.get("KORE_CAMERA", "3/4")  # "3/4", "side", "front", "top"
-RENDER_DIR = os.environ.get("KORE_RENDER_DIR", "C:/Users/kmessai/Downloads/spider_render")
+# Read config from file (env vars unreliable across WSL→Windows boundary)
+_config = {}
+for _config_path in [
+    r"\\wsl.localhost\Ubuntu\home\khaled\Kore\tools\loop\.render_config",
+    "/home/khaled/Kore/tools/loop/.render_config",
+]:
+    try:
+        with open(_config_path) as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _config[_k] = _v
+        break
+    except:
+        continue
+
+ANIMATION = _config.get("KORE_ANIMATION", os.environ.get("KORE_ANIMATION", "walk"))
+CAMERA_VIEW = _config.get("KORE_CAMERA", os.environ.get("KORE_CAMERA", "3/4"))
+RENDER_DIR = _config.get("KORE_RENDER_DIR", os.environ.get("KORE_RENDER_DIR", "C:/Users/kmessai/Downloads/spider_render"))
 FRAME_RATE = int(os.environ.get("KORE_FRAME_RATE", "24"))
 RESOLUTION = os.environ.get("KORE_RESOLUTION", "960x720")
 

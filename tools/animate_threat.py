@@ -1,27 +1,31 @@
 """
-Spider Threat Display Animation
+Spider Threat Display v2 — Bone-Local Axes + Animation Principles
 by Kore
 
-Something got too close. The spider rears up, spreads her fangs,
-and raises her front legs to look as large as possible.
-
-This is the arachnid equivalent of "back off."
+Fixes from v1:
+  1. Bone-local axes — front legs lift UP, not sideways
+  2. Anticipation frame — compress before exploding upward
+  3. Body rear-back actually visible
+  4. Snappy settle — drops suddenly, not gliding
+  5. Bigger fang spread
+  6. Overlapping action — legs don't all arrive at the same time
 """
 
 import bpy
 import math
+import mathutils
+from mathutils import Vector
 
-TOTAL_FRAMES = 80
+TOTAL_FRAMES = 90
 
-# Threat display parameters
-FRONT_LEG_RAISE = 30     # front legs go UP — look big
-FRONT_COXA_SPREAD = 12   # front legs spread outward
-BODY_REAR_BACK = 15      # cephalothorax tilts backward — exposing fangs
-FANG_SPREAD = 18         # chelicerae open wide — showing weapons
-PALP_FLARE = 15          # pedipalps spread outward
-MID_LEG_BRACE = 5        # mid legs brace wider for stability
-REAR_LEG_BRACE = 4       # rear legs brace backward
-ABDOMEN_RAISE = 6        # abdomen lifts slightly
+FRONT_LEG_RAISE = 35
+FRONT_COXA_SPREAD = 10
+BODY_REAR_BACK = 20
+FANG_SPREAD = 22
+PALP_FLARE = 18
+MID_LEG_BRACE = 6
+REAR_LEG_BRACE = 5
+ABDOMEN_RAISE = 8
 
 def deg(d):
     return math.radians(d)
@@ -32,13 +36,54 @@ def find_armature():
             return obj
     return None
 
-def set_rot(arm, bone_name, frame, rx=0, ry=0, rz=0):
+def get_bend_axis(arm, bone_name):
+    if bone_name not in arm.pose.bones:
+        return Vector((1, 0, 0))
+    bone = arm.pose.bones[bone_name].bone
+    mat = bone.matrix_local.to_3x3()
+    up_local = mat.inverted() @ Vector((0, 0, 1))
+    bone_y = Vector((0, 1, 0))
+    bend = up_local.cross(bone_y)
+    if bend.length < 0.001:
+        up_local = mat.inverted() @ Vector((0, 1, 0))
+        bend = up_local.cross(bone_y)
+    bend.normalize()
+    return bend
+
+def get_swing_axis(arm, bone_name):
+    if bone_name not in arm.pose.bones:
+        return Vector((0, 0, 1))
+    bone = arm.pose.bones[bone_name].bone
+    mat = bone.matrix_local.to_3x3()
+    swing = mat.inverted() @ Vector((0, 0, 1))
+    swing.normalize()
+    return swing
+
+def set_axis_rot(arm, bone_name, frame, axis, angle_deg):
     if bone_name not in arm.pose.bones:
         return
     pb = arm.pose.bones[bone_name]
-    pb.rotation_mode = 'XYZ'
-    pb.rotation_euler = (deg(rx), deg(ry), deg(rz))
-    pb.keyframe_insert(data_path='rotation_euler', frame=frame)
+    pb.rotation_mode = 'QUATERNION'
+    pb.rotation_quaternion = mathutils.Quaternion(axis, math.radians(angle_deg))
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
+
+def set_identity(arm, bone_name, frame):
+    if bone_name not in arm.pose.bones:
+        return
+    pb = arm.pose.bones[bone_name]
+    pb.rotation_mode = 'QUATERNION'
+    pb.rotation_quaternion = mathutils.Quaternion()
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
+
+def set_combined(arm, bone_name, frame, axis1, angle1, axis2, angle2):
+    if bone_name not in arm.pose.bones:
+        return
+    pb = arm.pose.bones[bone_name]
+    pb.rotation_mode = 'QUATERNION'
+    q1 = mathutils.Quaternion(axis1, math.radians(angle1))
+    q2 = mathutils.Quaternion(axis2, math.radians(angle2))
+    pb.rotation_quaternion = q1 @ q2
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
 
 def animate():
     arm = find_armature()
@@ -53,146 +98,208 @@ def animate():
     if arm.animation_data and arm.animation_data.action:
         bpy.data.actions.remove(arm.animation_data.action)
 
-    print("Threat display animation...")
+    print("Threat display v2 — bone-local axes + animation principles")
 
-    # Key moments
+    # Precompute axes
+    axes = {}
+    all_leg_bones = []
+    for leg in ['FL', 'FR', 'ML', 'MR', 'RL', 'RR']:
+        for seg in ['coxa', 'femur', 'tibia', 'tarsus']:
+            name = f'leg_{leg}_{seg}'
+            axes[name] = {
+                'bend': get_bend_axis(arm, name),
+                'swing': get_swing_axis(arm, name),
+            }
+            all_leg_bones.append(name)
+
+    for name in ['cephalothorax', 'abdomen', 'root',
+                  'fang_L', 'fang_R',
+                  'pedipalp_L_base', 'pedipalp_L_tip',
+                  'pedipalp_R_base', 'pedipalp_R_tip']:
+        axes[name] = {
+            'bend': get_bend_axis(arm, name),
+            'swing': get_swing_axis(arm, name),
+        }
+
+    # Timeline
     rest = 0
-    notice = 10           # spider notices the threat
-    rear_up = 25          # rearing back, legs starting to rise
-    full_threat = 40      # maximum threat posture — HOLD
-    hold_end = 55         # still holding
-    shimmy_1 = 60         # aggressive shimmy — "I mean it"
-    shimmy_2 = 65
-    settle = 72           # begin to settle
-    end = TOTAL_FRAMES    # back to rest (or hold if looping)
+    anticipate = 8        # COMPRESS — hunker down before exploding up
+    notice = 14           # start of rear-up
+    rear_up = 28          # front legs rising fast
+    full_threat = 42      # maximum intimidation — HOLD
+    hold_end = 56         # still holding
+    shimmy_1 = 60
+    shimmy_2 = 66
+    snap_down = 72        # SNAP — sudden drop, not gentle settle
+    rest_end = TOTAL_FRAMES
+
+    # Collect all bone names for rest keyframes
+    all_bones = all_leg_bones + ['cephalothorax', 'abdomen', 'root',
+        'fang_L', 'fang_R', 'pedipalp_L_base', 'pedipalp_L_tip',
+        'pedipalp_R_base', 'pedipalp_R_tip']
 
     # === REST ===
-    all_bones = ['root', 'cephalothorax', 'abdomen',
-                 'fang_L', 'fang_R',
-                 'pedipalp_L_base', 'pedipalp_L_tip',
-                 'pedipalp_R_base', 'pedipalp_R_tip']
-    for leg in ['FL', 'FR', 'ML', 'MR', 'RL', 'RR']:
-        all_bones.extend([f'leg_{leg}_coxa', f'leg_{leg}_femur',
-                          f'leg_{leg}_tibia', f'leg_{leg}_tarsus'])
-
     for bone in all_bones:
-        set_rot(arm, bone, rest, 0, 0, 0)
+        set_identity(arm, bone, rest)
 
-    # === NOTICE — slight startle ===
-    set_rot(arm, 'cephalothorax', notice, rx=-BODY_REAR_BACK * 0.2)
-    set_rot(arm, 'leg_FL_coxa', notice, ry=FRONT_COXA_SPREAD * 0.3)
-    set_rot(arm, 'leg_FR_coxa', notice, ry=-FRONT_COXA_SPREAD * 0.3)
+    # === ANTICIPATION — compress downward before the explosion ===
+    # Legs bend slightly inward, body drops
+    bend_ceph = axes['cephalothorax']['bend']
+    set_axis_rot(arm, 'cephalothorax', anticipate, bend_ceph, 4)  # slight duck
+    for leg in ['FL', 'FR']:
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        set_axis_rot(arm, f'leg_{leg}_femur', anticipate, bend_f, 5)  # compress down
+
+    # === NOTICE — start the rear-up ===
+    set_axis_rot(arm, 'cephalothorax', notice, bend_ceph, -BODY_REAR_BACK * 0.3)
+    for leg in ['FL', 'FR']:
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        set_axis_rot(arm, f'leg_{leg}_femur', notice, bend_f, -FRONT_LEG_RAISE * 0.2)
 
     # === REAR UP — the big move ===
-    # Body tilts backward
-    set_rot(arm, 'cephalothorax', rear_up, rx=-BODY_REAR_BACK * 0.7)
-    set_rot(arm, 'abdomen', rear_up, rx=ABDOMEN_RAISE * 0.5)
+    set_axis_rot(arm, 'cephalothorax', rear_up, bend_ceph, -BODY_REAR_BACK * 0.7)
+    bend_abd = axes['abdomen']['bend']
+    set_axis_rot(arm, 'abdomen', rear_up, bend_abd, -ABDOMEN_RAISE * 0.5)
 
-    # Front legs rising
-    set_rot(arm, 'leg_FL_coxa', rear_up, ry=FRONT_COXA_SPREAD * 0.7)
-    set_rot(arm, 'leg_FL_femur', rear_up, rx=-FRONT_LEG_RAISE * 0.7)
-    set_rot(arm, 'leg_FL_tibia', rear_up, rx=FRONT_LEG_RAISE * 0.3)
-    set_rot(arm, 'leg_FR_coxa', rear_up, ry=-FRONT_COXA_SPREAD * 0.7)
-    set_rot(arm, 'leg_FR_femur', rear_up, rx=-FRONT_LEG_RAISE * 0.7)
-    set_rot(arm, 'leg_FR_tibia', rear_up, rx=FRONT_LEG_RAISE * 0.3)
+    # Front legs rising — overlapping: FL arrives 2 frames before FR
+    for i, leg in enumerate(['FL', 'FR']):
+        offset = i * 2  # FR is 2 frames behind FL
+        bend_c = axes[f'leg_{leg}_coxa']['bend']
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        bend_t = axes[f'leg_{leg}_tibia']['bend']
 
-    # Fangs starting to open
-    set_rot(arm, 'fang_L', rear_up, rz=FANG_SPREAD * 0.5)
-    set_rot(arm, 'fang_R', rear_up, rz=-FANG_SPREAD * 0.5)
+        set_axis_rot(arm, f'leg_{leg}_coxa', rear_up + offset, swing_c, FRONT_COXA_SPREAD * 0.7 * (1 if leg.endswith('L') else -1))
+        set_axis_rot(arm, f'leg_{leg}_femur', rear_up + offset, bend_f, -FRONT_LEG_RAISE * 0.7)
+        set_axis_rot(arm, f'leg_{leg}_tibia', rear_up + offset, bend_t, -FRONT_LEG_RAISE * 0.3)
+
+    # Fangs opening
+    bend_fl = axes['fang_L']['bend']
+    bend_fr = axes['fang_R']['bend']
+    swing_fl = axes['fang_L']['swing']
+    swing_fr = axes['fang_R']['swing']
+    set_axis_rot(arm, 'fang_L', rear_up, swing_fl, FANG_SPREAD * 0.5)
+    set_axis_rot(arm, 'fang_R', rear_up, swing_fr, -FANG_SPREAD * 0.5)
 
     # === FULL THREAT — maximum intimidation ===
-    # Body fully reared
-    set_rot(arm, 'cephalothorax', full_threat, rx=-BODY_REAR_BACK)
-    set_rot(arm, 'abdomen', full_threat, rx=ABDOMEN_RAISE)
+    set_axis_rot(arm, 'cephalothorax', full_threat, bend_ceph, -BODY_REAR_BACK)
+    set_axis_rot(arm, 'abdomen', full_threat, bend_abd, -ABDOMEN_RAISE)
 
-    # Front legs fully raised and spread
-    set_rot(arm, 'leg_FL_coxa', full_threat, ry=FRONT_COXA_SPREAD)
-    set_rot(arm, 'leg_FL_femur', full_threat, rx=-FRONT_LEG_RAISE)
-    set_rot(arm, 'leg_FL_tibia', full_threat, rx=FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'leg_FL_tarsus', full_threat, rx=-FRONT_LEG_RAISE * 0.2)
-    set_rot(arm, 'leg_FR_coxa', full_threat, ry=-FRONT_COXA_SPREAD)
-    set_rot(arm, 'leg_FR_femur', full_threat, rx=-FRONT_LEG_RAISE)
-    set_rot(arm, 'leg_FR_tibia', full_threat, rx=FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'leg_FR_tarsus', full_threat, rx=-FRONT_LEG_RAISE * 0.2)
+    for i, leg in enumerate(['FL', 'FR']):
+        offset = i * 2
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        bend_t = axes[f'leg_{leg}_tibia']['bend']
 
-    # Fangs wide open
-    set_rot(arm, 'fang_L', full_threat, rz=FANG_SPREAD)
-    set_rot(arm, 'fang_R', full_threat, rz=-FANG_SPREAD)
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', full_threat + offset, swing_c, FRONT_COXA_SPREAD * side)
+        set_axis_rot(arm, f'leg_{leg}_femur', full_threat + offset, bend_f, -FRONT_LEG_RAISE)
+        set_axis_rot(arm, f'leg_{leg}_tibia', full_threat + offset, bend_t, -FRONT_LEG_RAISE * 0.4)
 
-    # Pedipalps flared
-    set_rot(arm, 'pedipalp_L_base', full_threat, ry=PALP_FLARE, rx=-PALP_FLARE * 0.5)
-    set_rot(arm, 'pedipalp_R_base', full_threat, ry=-PALP_FLARE, rx=-PALP_FLARE * 0.5)
+    # Fangs wide
+    set_axis_rot(arm, 'fang_L', full_threat, swing_fl, FANG_SPREAD)
+    set_axis_rot(arm, 'fang_R', full_threat, swing_fr, -FANG_SPREAD)
 
-    # Mid legs brace outward for stability
-    set_rot(arm, 'leg_ML_coxa', full_threat, ry=MID_LEG_BRACE)
-    set_rot(arm, 'leg_MR_coxa', full_threat, ry=-MID_LEG_BRACE)
-    set_rot(arm, 'leg_ML_femur', full_threat, rx=-MID_LEG_BRACE)
-    set_rot(arm, 'leg_MR_femur', full_threat, rx=-MID_LEG_BRACE)
+    # Pedipalps flare
+    bend_pl = axes['pedipalp_L_base']['bend']
+    bend_pr = axes['pedipalp_R_base']['bend']
+    swing_pl = axes['pedipalp_L_base']['swing']
+    swing_pr = axes['pedipalp_R_base']['swing']
+    set_combined(arm, 'pedipalp_L_base', full_threat, bend_pl, -PALP_FLARE * 0.5, swing_pl, PALP_FLARE)
+    set_combined(arm, 'pedipalp_R_base', full_threat, bend_pr, -PALP_FLARE * 0.5, swing_pr, -PALP_FLARE)
 
-    # Rear legs brace backward
-    set_rot(arm, 'leg_RL_coxa', full_threat, ry=REAR_LEG_BRACE)
-    set_rot(arm, 'leg_RR_coxa', full_threat, ry=-REAR_LEG_BRACE)
+    # Mid legs brace
+    for leg in ['ML', 'MR']:
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', full_threat, swing_c, MID_LEG_BRACE * side)
+        set_axis_rot(arm, f'leg_{leg}_femur', full_threat, bend_f, -MID_LEG_BRACE)
 
-    # === HOLD — maintain threat posture ===
-    # Copy full_threat pose
-    set_rot(arm, 'cephalothorax', hold_end, rx=-BODY_REAR_BACK)
-    set_rot(arm, 'abdomen', hold_end, rx=ABDOMEN_RAISE)
-    set_rot(arm, 'leg_FL_coxa', hold_end, ry=FRONT_COXA_SPREAD)
-    set_rot(arm, 'leg_FL_femur', hold_end, rx=-FRONT_LEG_RAISE)
-    set_rot(arm, 'leg_FL_tibia', hold_end, rx=FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'leg_FL_tarsus', hold_end, rx=-FRONT_LEG_RAISE * 0.2)
-    set_rot(arm, 'leg_FR_coxa', hold_end, ry=-FRONT_COXA_SPREAD)
-    set_rot(arm, 'leg_FR_femur', hold_end, rx=-FRONT_LEG_RAISE)
-    set_rot(arm, 'leg_FR_tibia', hold_end, rx=FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'leg_FR_tarsus', hold_end, rx=-FRONT_LEG_RAISE * 0.2)
-    set_rot(arm, 'fang_L', hold_end, rz=FANG_SPREAD)
-    set_rot(arm, 'fang_R', hold_end, rz=-FANG_SPREAD)
-    set_rot(arm, 'pedipalp_L_base', hold_end, ry=PALP_FLARE, rx=-PALP_FLARE * 0.5)
-    set_rot(arm, 'pedipalp_R_base', hold_end, ry=-PALP_FLARE, rx=-PALP_FLARE * 0.5)
-    set_rot(arm, 'leg_ML_coxa', hold_end, ry=MID_LEG_BRACE)
-    set_rot(arm, 'leg_MR_coxa', hold_end, ry=-MID_LEG_BRACE)
-    set_rot(arm, 'leg_ML_femur', hold_end, rx=-MID_LEG_BRACE)
-    set_rot(arm, 'leg_MR_femur', hold_end, rx=-MID_LEG_BRACE)
-    set_rot(arm, 'leg_RL_coxa', hold_end, ry=REAR_LEG_BRACE)
-    set_rot(arm, 'leg_RR_coxa', hold_end, ry=-REAR_LEG_BRACE)
+    # Rear legs brace
+    for leg in ['RL', 'RR']:
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', full_threat, swing_c, REAR_LEG_BRACE * side)
 
-    # === SHIMMY — aggressive shake, "I MEAN IT" ===
-    set_rot(arm, 'cephalothorax', shimmy_1, rx=-BODY_REAR_BACK, rz=4)
-    set_rot(arm, 'leg_FL_femur', shimmy_1, rx=-FRONT_LEG_RAISE * 1.1)
-    set_rot(arm, 'leg_FR_femur', shimmy_1, rx=-FRONT_LEG_RAISE * 0.9)
-    set_rot(arm, 'fang_L', shimmy_1, rz=FANG_SPREAD * 1.2)
-    set_rot(arm, 'fang_R', shimmy_1, rz=-FANG_SPREAD * 0.8)
+    # === HOLD — copy full threat ===
+    set_axis_rot(arm, 'cephalothorax', hold_end, bend_ceph, -BODY_REAR_BACK)
+    set_axis_rot(arm, 'abdomen', hold_end, bend_abd, -ABDOMEN_RAISE)
+    for leg in ['FL', 'FR']:
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        bend_t = axes[f'leg_{leg}_tibia']['bend']
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', hold_end, swing_c, FRONT_COXA_SPREAD * side)
+        set_axis_rot(arm, f'leg_{leg}_femur', hold_end, bend_f, -FRONT_LEG_RAISE)
+        set_axis_rot(arm, f'leg_{leg}_tibia', hold_end, bend_t, -FRONT_LEG_RAISE * 0.4)
+    set_axis_rot(arm, 'fang_L', hold_end, swing_fl, FANG_SPREAD)
+    set_axis_rot(arm, 'fang_R', hold_end, swing_fr, -FANG_SPREAD)
+    set_combined(arm, 'pedipalp_L_base', hold_end, bend_pl, -PALP_FLARE * 0.5, swing_pl, PALP_FLARE)
+    set_combined(arm, 'pedipalp_R_base', hold_end, bend_pr, -PALP_FLARE * 0.5, swing_pr, -PALP_FLARE)
+    for leg in ['ML', 'MR']:
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', hold_end, swing_c, MID_LEG_BRACE * side)
+        set_axis_rot(arm, f'leg_{leg}_femur', hold_end, bend_f, -MID_LEG_BRACE)
+    for leg in ['RL', 'RR']:
+        swing_c = axes[f'leg_{leg}_coxa']['swing']
+        side = 1 if leg.endswith('L') else -1
+        set_axis_rot(arm, f'leg_{leg}_coxa', hold_end, swing_c, REAR_LEG_BRACE * side)
 
-    set_rot(arm, 'cephalothorax', shimmy_2, rx=-BODY_REAR_BACK, rz=-4)
-    set_rot(arm, 'leg_FL_femur', shimmy_2, rx=-FRONT_LEG_RAISE * 0.9)
-    set_rot(arm, 'leg_FR_femur', shimmy_2, rx=-FRONT_LEG_RAISE * 1.1)
-    set_rot(arm, 'fang_L', shimmy_2, rz=FANG_SPREAD * 0.8)
-    set_rot(arm, 'fang_R', shimmy_2, rz=-FANG_SPREAD * 1.2)
+    # === SHIMMY — aggressive asymmetric shake ===
+    set_axis_rot(arm, 'cephalothorax', shimmy_1, bend_ceph, -BODY_REAR_BACK)
+    bend_fl_fem = axes['leg_FL_femur']['bend']
+    bend_fr_fem = axes['leg_FR_femur']['bend']
+    set_axis_rot(arm, 'leg_FL_femur', shimmy_1, bend_fl_fem, -FRONT_LEG_RAISE * 1.15)
+    set_axis_rot(arm, 'leg_FR_femur', shimmy_1, bend_fr_fem, -FRONT_LEG_RAISE * 0.85)
+    set_axis_rot(arm, 'fang_L', shimmy_1, swing_fl, FANG_SPREAD * 1.2)
+    set_axis_rot(arm, 'fang_R', shimmy_1, swing_fr, -FANG_SPREAD * 0.8)
 
-    # === SETTLE — slowly lower back down ===
-    set_rot(arm, 'cephalothorax', settle, rx=-BODY_REAR_BACK * 0.4)
-    set_rot(arm, 'leg_FL_femur', settle, rx=-FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'leg_FR_femur', settle, rx=-FRONT_LEG_RAISE * 0.4)
-    set_rot(arm, 'fang_L', settle, rz=FANG_SPREAD * 0.3)
-    set_rot(arm, 'fang_R', settle, rz=-FANG_SPREAD * 0.3)
+    set_axis_rot(arm, 'cephalothorax', shimmy_2, bend_ceph, -BODY_REAR_BACK)
+    set_axis_rot(arm, 'leg_FL_femur', shimmy_2, bend_fl_fem, -FRONT_LEG_RAISE * 0.85)
+    set_axis_rot(arm, 'leg_FR_femur', shimmy_2, bend_fr_fem, -FRONT_LEG_RAISE * 1.15)
+    set_axis_rot(arm, 'fang_L', shimmy_2, swing_fl, FANG_SPREAD * 0.8)
+    set_axis_rot(arm, 'fang_R', shimmy_2, swing_fr, -FANG_SPREAD * 1.2)
 
-    # === END — back to rest ===
+    # === SNAP DOWN — sudden drop, not gentle ===
+    # Only 4 frames from shimmy to snap — fast!
     for bone in all_bones:
-        set_rot(arm, bone, end, 0, 0, 0)
+        set_identity(arm, bone, snap_down)
+
+    # Tiny overshoot — legs go slightly PAST rest then settle
+    for leg in ['FL', 'FR']:
+        bend_f = axes[f'leg_{leg}_femur']['bend']
+        set_axis_rot(arm, f'leg_{leg}_femur', snap_down + 3, bend_f, 4)  # overshoot down
+
+    # === FINAL REST ===
+    for bone in all_bones:
+        set_identity(arm, bone, rest_end)
 
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = TOTAL_FRAMES
     bpy.context.scene.frame_current = 0
 
+    # Bezier for the buildup, but LINEAR for the snap-down (fast drop)
     if arm.animation_data and arm.animation_data.action:
-        for fc in arm.animation_data.action.fcurves:
-            for kp in fc.keyframe_points:
-                kp.interpolation = 'BEZIER'
-                kp.handle_left_type = 'AUTO_CLAMPED'
-                kp.handle_right_type = 'AUTO_CLAMPED'
+        try:
+            for layer in arm.animation_data.action.layers:
+                for strip in layer.strips:
+                    for cb in strip.channelbags:
+                        for fc in cb.fcurves:
+                            for kp in fc.keyframe_points:
+                                if kp.co[0] >= snap_down - 2:
+                                    kp.interpolation = 'LINEAR'
+                                else:
+                                    kp.interpolation = 'BEZIER'
+                                    kp.handle_left_type = 'AUTO_CLAMPED'
+                                    kp.handle_right_type = 'AUTO_CLAMPED'
+        except:
+            pass
 
-    print(f"Threat display: {TOTAL_FRAMES} frames. Press Space!")
-    print("  Notice → Rear up → FULL THREAT → Shimmy → Settle")
+    print(f"Threat display v2: {TOTAL_FRAMES} frames")
+    print("  Anticipation → Rear up → FULL THREAT → Shimmy → SNAP down → Rest")
 
 try:
     animate()

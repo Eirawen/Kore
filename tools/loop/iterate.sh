@@ -47,6 +47,16 @@ mkdir -p "${OUTPUT_DIR}" "${GRID_DIR}"
 
 # Step 1: Blender render
 echo "[render] Starting Blender headless..."
+# Write config to a file that Blender can read (env vars unreliable across WSL→Windows)
+CONFIG_FILE="/home/khaled/Kore/tools/loop/.render_config"
+cat > "${CONFIG_FILE}" <<CONF
+KORE_ANIMATION=${ANIMATION}
+KORE_RENDER_DIR=${RENDER_DIR_WIN}
+KORE_FRAME_RATE=24
+KORE_RESOLUTION=${RESOLUTION}
+KORE_CAMERA=${CAMERA}
+CONF
+
 export KORE_ANIMATION="${ANIMATION}"
 export KORE_RENDER_DIR="${RENDER_DIR_WIN}"
 export KORE_FRAME_RATE="24"
