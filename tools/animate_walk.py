@@ -1,17 +1,19 @@
 """
-Spider Walk Cycle v6 — Local Bone Axes
+Spider Walk Cycle v7 — Bone-Local Space
 by Kore
 
-The fix: instead of rotating all bones around global X/Y/Z,
-query each bone's actual orientation and rotate around ITS axis.
+v6 had the right idea (compute per-bone bend axes) but the wrong
+coordinate space. rotation_quaternion is interpreted in BONE-LOCAL
+space, but v6 computed the axes in ARMATURE space. Result: each bone
+rotated around a seemingly random axis — partially twisting, partially
+swinging — and the combined rotations of femur+tibia+tarsus cancelled
+each other out. The feet LOOKED planted because the net vertical
+displacement was near zero.
 
-A femur pointing northeast needs a different rotation vector to
-"lift upward" than a femur pointing southwest. Global X lifts one
-and twists the other. Local axes lift both correctly.
-
-The bone's local Z axis (tail - head, normalized) is its length axis.
-To "bend" a joint, we rotate around the axis PERPENDICULAR to the
-bone's length and perpendicular to world-up. That's the bend axis.
+The fix: compute bend axes directly in bone-local space.
+  - Bone local Y = bone direction (head to tail)
+  - up_local = armature Z (0,0,1) transformed to bone-local
+  - bend_axis = up_local.cross(bone_Y)  (sign: negative angle = lift)
 """
 
 import bpy
@@ -25,11 +27,11 @@ CYCLES = 3
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
 
-# Rotation amounts (degrees)
+# Rotation amounts (degrees) — correct axes mean we need less rotation
 COXA_SWING = 8
-FEMUR_LIFT = 14
-TIBIA_BEND = 10
-TARSUS_FLEX = 3
+FEMUR_LIFT = 15
+TIBIA_BEND = 12
+TARSUS_FLEX = 4
 
 BODY_SWAY = 1.2
 BODY_BOB = 1.0
@@ -45,37 +47,52 @@ def find_armature():
 
 def get_bone_bend_axis(arm, bone_name):
     """
-    Compute the axis a bone should rotate around to produce a natural bend.
+    Compute the axis a bone should rotate around to produce a natural bend,
+    in BONE-LOCAL space (which is what rotation_quaternion expects).
 
-    The bend axis is perpendicular to BOTH the bone's length AND world-up.
-    This means rotating around it lifts/lowers the bone in the vertical plane
-    containing the bone — exactly what a joint does.
+    In bone-local space:
+      Y axis = bone direction (head to tail)
+      up_local = armature (0,0,1) transformed to bone-local
+
+    The bend axis = up_local.cross(bone_Y).
+    Sign convention: NEGATIVE angle = lift (rotate tail toward +Z in armature space).
     """
     if bone_name not in arm.pose.bones:
         return Vector((1, 0, 0))
 
     bone = arm.pose.bones[bone_name].bone
-    # Bone direction in armature space
-    bone_dir = (bone.tail_local - bone.head_local).normalized()
 
-    # World up
-    up = Vector((0, 0, 1))
+    # Transform armature-space "up" to bone-local space
+    mat = bone.matrix_local.to_3x3()
+    up_local = mat.inverted() @ Vector((0, 0, 1))
 
-    # Bend axis = perpendicular to bone direction AND up
-    bend = bone_dir.cross(up)
+    # Bone direction in local space is always (0, 1, 0)
+    bone_y = Vector((0, 1, 0))
+
+    # Bend axis perpendicular to bone direction and up, in bone-local space
+    # Cross order chosen so negative angle = lift
+    bend = up_local.cross(bone_y)
     if bend.length < 0.001:
-        # Bone is pointing straight up/down — use a fallback
-        bend = bone_dir.cross(Vector((0, 1, 0)))
+        # Bone is vertical — fall back to armature Y as "up"
+        up_local = mat.inverted() @ Vector((0, 1, 0))
+        bend = up_local.cross(bone_y)
     bend.normalize()
 
     return bend
 
 def get_bone_swing_axis(arm, bone_name):
     """
-    The swing axis is world-up (Z). Swinging rotates the bone
-    forward/backward in the horizontal plane — the coxa's job.
+    The swing axis is world-up (Z) transformed to bone-local space.
+    Swinging rotates the bone forward/backward in the horizontal plane.
     """
-    return Vector((0, 0, 1))
+    if bone_name not in arm.pose.bones:
+        return Vector((0, 0, 1))
+
+    bone = arm.pose.bones[bone_name].bone
+    mat = bone.matrix_local.to_3x3()
+    swing = mat.inverted() @ Vector((0, 0, 1))
+    swing.normalize()
+    return swing
 
 def set_rot_around_axis(arm, bone_name, frame, axis, angle_deg):
     """Rotate a bone around an arbitrary axis by angle_deg degrees."""
@@ -129,7 +146,7 @@ def animate():
     if arm.animation_data and arm.animation_data.action:
         bpy.data.actions.remove(arm.animation_data.action)
 
-    print("Walk cycle v6 — local bone axes")
+    print("Walk cycle v7 — bone-local space")
 
     # Precompute bend and swing axes for each leg bone
     axes = {}
@@ -158,32 +175,35 @@ def animate():
         bend_ta = axes[tarsus]['bend']
         swing_c = axes[coxa]['swing']
 
-        # STANCE START — planted
+        # With bone-local axes: NEGATIVE angle = lift (rotate toward +Z)
+        #                       POSITIVE angle = lower (rotate toward -Z)
+
+        # STANCE START — planted, all at rest
         set_rot_around_axis(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
         set_identity(arm, femur, swing_start)
         set_identity(arm, tibia, swing_start)
         set_identity(arm, tarsus, swing_start)
 
-        # LIFT — femur bends upward around its local bend axis
+        # LIFT — all joints flex upward to clear ground
         lift = swing_start + int((swing_mid - swing_start) * 0.5)
         set_identity(arm, coxa, lift)
         set_rot_around_axis(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.6)
-        set_rot_around_axis(arm, tibia, lift, bend_t, TIBIA_BEND * 0.4)
-        set_rot_around_axis(arm, tarsus, lift, bend_ta, TARSUS_FLEX)
+        set_rot_around_axis(arm, tibia, lift, bend_t, -TIBIA_BEND * 0.4)
+        set_rot_around_axis(arm, tarsus, lift, bend_ta, -TARSUS_FLEX)
 
-        # PEAK — max height
+        # PEAK — max height, all joints flexed upward
         set_rot_around_axis(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5)
         set_rot_around_axis(arm, femur, swing_mid, bend_f, -FEMUR_LIFT)
-        set_rot_around_axis(arm, tibia, swing_mid, bend_t, TIBIA_BEND)
-        set_rot_around_axis(arm, tarsus, swing_mid, bend_ta, TARSUS_FLEX * 0.5)
+        set_rot_around_axis(arm, tibia, swing_mid, bend_t, -TIBIA_BEND * 0.7)
+        set_rot_around_axis(arm, tarsus, swing_mid, bend_ta, -TARSUS_FLEX * 0.5)
 
-        # PLANT — leg comes down
+        # PLANT — leg extends down to reach ground
         set_rot_around_axis(arm, coxa, swing_end, swing_c, -COXA_SWING * 0.3)
         set_rot_around_axis(arm, femur, swing_end, bend_f, -FEMUR_LIFT * 0.1)
         set_rot_around_axis(arm, tibia, swing_end, bend_t, TIBIA_BEND * 0.1)
         set_identity(arm, tarsus, swing_end)
 
-        # STANCE — push back
+        # STANCE — push back, grounded
         set_rot_around_axis(arm, coxa, stance_end, swing_c, COXA_SWING * 0.3)
         set_identity(arm, femur, stance_end)
         set_identity(arm, tibia, stance_end)
@@ -206,17 +226,22 @@ def animate():
                 swing_end=base + CYCLE_FRAMES,
                 stance_end=base + CYCLE_FRAMES + half)
 
-        # Body sway
+        # Body sway — axes in root bone's local space
         q1 = base + half // 2
         q2 = base + half
         q3 = base + half + half // 2
         q4 = base + CYCLE_FRAMES
 
+        root_bone = arm.pose.bones['root'].bone
+        root_mat = root_bone.matrix_local.to_3x3()
+        bob_axis = root_mat.inverted() @ Vector((1, 0, 0))   # pitch axis in root-local
+        sway_axis = root_mat.inverted() @ Vector((0, 0, 1))   # yaw axis in root-local
+
         set_identity(arm, 'root', base)
-        bob_q1 = compose_rotations(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), BODY_SWAY)
+        bob_q1 = compose_rotations(bob_axis, BODY_BOB, sway_axis, BODY_SWAY)
         set_rot_composed(arm, 'root', q1, bob_q1)
         set_identity(arm, 'root', q2)
-        bob_q3 = compose_rotations(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), -BODY_SWAY)
+        bob_q3 = compose_rotations(bob_axis, BODY_BOB, sway_axis, -BODY_SWAY)
         set_rot_composed(arm, 'root', q3, bob_q3)
         set_identity(arm, 'root', q4)
 
@@ -224,13 +249,29 @@ def animate():
     bpy.context.scene.frame_end = total_frames
     bpy.context.scene.frame_current = 0
 
-    # Smooth interpolation
+    # Smooth interpolation (Blender 5.1 layered action API + legacy fallback)
     if arm.animation_data and arm.animation_data.action:
-        for fc in arm.animation_data.action.fcurves:
-            for kp in fc.keyframe_points:
-                kp.interpolation = 'BEZIER'
-                kp.handle_left_type = 'AUTO_CLAMPED'
-                kp.handle_right_type = 'AUTO_CLAMPED'
+        action = arm.animation_data.action
+        smoothed = 0
+        if hasattr(action, 'layers'):
+            for layer in action.layers:
+                for strip in layer.strips:
+                    if hasattr(strip, 'channelbags'):
+                        for cb in strip.channelbags:
+                            for fc in cb.fcurves:
+                                for kp in fc.keyframe_points:
+                                    kp.interpolation = 'BEZIER'
+                                    kp.handle_left_type = 'AUTO_CLAMPED'
+                                    kp.handle_right_type = 'AUTO_CLAMPED'
+                                    smoothed += 1
+        elif hasattr(action, 'fcurves'):
+            for fc in action.fcurves:
+                for kp in fc.keyframe_points:
+                    kp.interpolation = 'BEZIER'
+                    kp.handle_left_type = 'AUTO_CLAMPED'
+                    kp.handle_right_type = 'AUTO_CLAMPED'
+                    smoothed += 1
+        print(f"  Smoothed {smoothed} keyframe handles.")
 
     print(f"Done: {total_frames} frames. Press Space!")
 
