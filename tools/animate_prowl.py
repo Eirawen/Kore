@@ -155,13 +155,13 @@ def animate():
         set_identity(arm, coxa, lift)
         set_axis_rot(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.5 * lift_mult)
         set_axis_rot(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.3 * lift_mult)
-        set_axis_rot(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX * 3)  # dramatic curl up
+        set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)  # maintain tiptoe, no flipper
 
         # === PEAK — low, not dramatic ===
         set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.4 * swing_mult)
         set_axis_rot(arm, femur, swing_mid, bend_f, -FEMUR_LIFT * lift_mult)
         set_axis_rot(arm, tibia, swing_mid + d, bend_t, -TIBIA_BEND * 0.6 * lift_mult)
-        set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, -TARSUS_FLEX)
+        set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)  # stays tiptoe throughout
 
         # === PLANT — careful placement ===
         set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.15 * swing_mult)
