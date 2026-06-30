@@ -190,14 +190,14 @@ def animate():
         set_rot_around_axis(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
         set_identity(arm, femur, swing_start)
         set_identity(arm, tibia, swing_start)
-        set_rot_around_axis(arm, tarsus, swing_start, bend_ta, 5)  # tiptoe angle
+        set_rot_around_axis(arm, tarsus, swing_start, bend_ta, 25)  # real tiptoe — nearly vertical
 
         # LIFT — femur initiates, tibia follows, tarsus curls UP to clear ground
         lift = swing_start + int((swing_mid - swing_start) * 0.5)
         set_identity(arm, coxa, lift)
         set_rot_around_axis(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.6 * lift_mult)
         set_rot_around_axis(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.4 * lift_mult)
-        set_rot_around_axis(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX * 1.5)  # curl up
+        set_rot_around_axis(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX * 3)  # dramatic curl up off ground
 
         # PEAK — femur peaks first, tibia catches up
         set_rot_around_axis(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5 * swing_mult)
@@ -209,7 +209,7 @@ def animate():
         set_rot_around_axis(arm, coxa, swing_end, swing_c, -COXA_SWING * 0.2 * swing_mult)
         set_rot_around_axis(arm, femur, swing_end, bend_f, -FEMUR_LIFT * 0.05)
         set_rot_around_axis(arm, tibia, min(swing_end + d, stance_end - 1), bend_t, TIBIA_BEND * 0.05)
-        set_rot_around_axis(arm, tarsus, min(swing_end + d2, stance_end - 1), bend_ta, 5)  # back to tiptoe
+        set_rot_around_axis(arm, tarsus, min(swing_end + d2, stance_end - 1), bend_ta, 25)  # back to tiptoe
 
         # SETTLE — brief moment of absorption after plant (2 frames)
         settle = min(swing_end + 3, stance_end - 2)
@@ -221,7 +221,7 @@ def animate():
         set_rot_around_axis(arm, coxa, stance_end, swing_c, COXA_SWING * 0.4)
         set_identity(arm, femur, stance_end)
         set_identity(arm, tibia, stance_end)
-        set_rot_around_axis(arm, tarsus, stance_end, bend_ta, 5)  # tiptoe maintained
+        set_rot_around_axis(arm, tarsus, stance_end, bend_ta, 25)  # tiptoe maintained
 
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
