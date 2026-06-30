@@ -33,8 +33,8 @@ FEMUR_LIFT = 15
 TIBIA_BEND = 12
 TARSUS_FLEX = 4
 
-BODY_SWAY = 1.2
-BODY_BOB = 1.0
+BODY_SWAY = 1.5
+BODY_BOB = 1.8  # visible but not bouncy
 
 def deg(d):
     return math.radians(d)
@@ -163,7 +163,14 @@ def animate():
     total_frames = CYCLE_FRAMES * CYCLES
     half = CYCLE_FRAMES // 2
 
+    OVERLAP_DELAY = 2
+
     def animate_leg(leg, swing_start, swing_mid, swing_end, stance_end):
+        # Front legs reach more, rear legs push more
+        is_front = leg.startswith('F')
+        is_rear = leg.startswith('R')
+        lift_mult = 1.2 if is_front else (0.8 if is_rear else 1.0)
+        swing_mult = 1.3 if is_front else (0.7 if is_rear else 1.0)
         coxa = f'leg_{leg}_coxa'
         femur = f'leg_{leg}_femur'
         tibia = f'leg_{leg}_tibia'
@@ -175,8 +182,9 @@ def animate():
         bend_ta = axes[tarsus]['bend']
         swing_c = axes[coxa]['swing']
 
-        # With bone-local axes: NEGATIVE angle = lift (rotate toward +Z)
-        #                       POSITIVE angle = lower (rotate toward -Z)
+        # Tibia and tarsus FOLLOW the femur by a few frames (overlapping action)
+        d = OVERLAP_DELAY
+        d2 = OVERLAP_DELAY * 2
 
         # STANCE START — planted, all at rest
         set_rot_around_axis(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
@@ -184,27 +192,33 @@ def animate():
         set_identity(arm, tibia, swing_start)
         set_identity(arm, tarsus, swing_start)
 
-        # LIFT — all joints flex upward to clear ground
+        # LIFT — femur initiates, tibia follows
         lift = swing_start + int((swing_mid - swing_start) * 0.5)
         set_identity(arm, coxa, lift)
-        set_rot_around_axis(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.6)
-        set_rot_around_axis(arm, tibia, lift, bend_t, -TIBIA_BEND * 0.4)
-        set_rot_around_axis(arm, tarsus, lift, bend_ta, -TARSUS_FLEX)
+        set_rot_around_axis(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.6 * lift_mult)
+        set_rot_around_axis(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.4 * lift_mult)
+        set_rot_around_axis(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX)
 
-        # PEAK — max height, all joints flexed upward
-        set_rot_around_axis(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5)
-        set_rot_around_axis(arm, femur, swing_mid, bend_f, -FEMUR_LIFT)
-        set_rot_around_axis(arm, tibia, swing_mid, bend_t, -TIBIA_BEND * 0.7)
-        set_rot_around_axis(arm, tarsus, swing_mid, bend_ta, -TARSUS_FLEX * 0.5)
+        # PEAK — femur peaks first, tibia catches up
+        set_rot_around_axis(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5 * swing_mult)
+        set_rot_around_axis(arm, femur, swing_mid, bend_f, -FEMUR_LIFT * lift_mult)
+        set_rot_around_axis(arm, tibia, swing_mid + d, bend_t, -TIBIA_BEND * 0.7 * lift_mult)
+        set_rot_around_axis(arm, tarsus, swing_mid + d2, bend_ta, -TARSUS_FLEX * 0.5)
 
-        # PLANT — leg extends down to reach ground
-        set_rot_around_axis(arm, coxa, swing_end, swing_c, -COXA_SWING * 0.3)
-        set_rot_around_axis(arm, femur, swing_end, bend_f, -FEMUR_LIFT * 0.1)
-        set_rot_around_axis(arm, tibia, swing_end, bend_t, TIBIA_BEND * 0.1)
-        set_identity(arm, tarsus, swing_end)
+        # PLANT — leg reaches ground, slight settle
+        set_rot_around_axis(arm, coxa, swing_end, swing_c, -COXA_SWING * 0.2 * swing_mult)
+        set_rot_around_axis(arm, femur, swing_end, bend_f, -FEMUR_LIFT * 0.05)
+        set_rot_around_axis(arm, tibia, min(swing_end + d, stance_end - 1), bend_t, TIBIA_BEND * 0.05)
+        set_identity(arm, tarsus, min(swing_end + d2, stance_end - 1))
 
-        # STANCE — push back, grounded
-        set_rot_around_axis(arm, coxa, stance_end, swing_c, COXA_SWING * 0.3)
+        # SETTLE — brief moment of absorption after plant (2 frames)
+        settle = min(swing_end + 3, stance_end - 2)
+        set_rot_around_axis(arm, coxa, settle, swing_c, -COXA_SWING * 0.1 * swing_mult)
+        set_identity(arm, femur, settle)
+        set_identity(arm, tibia, settle)
+
+        # STANCE — push back, coxa drifts backward (body moving over planted foot)
+        set_rot_around_axis(arm, coxa, stance_end, swing_c, COXA_SWING * 0.4)
         set_identity(arm, femur, stance_end)
         set_identity(arm, tibia, stance_end)
         set_identity(arm, tarsus, stance_end)
