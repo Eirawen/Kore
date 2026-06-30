@@ -1,13 +1,23 @@
 """
-Spider Walk Cycle v3 — Gentle for 3k mesh
+Spider Walk Cycle v6 — Local Bone Axes
 by Kore
 
-Tuned for low-poly: small rotations that don't tear the mesh.
-Proves the pipeline without requiring production geometry.
+The fix: instead of rotating all bones around global X/Y/Z,
+query each bone's actual orientation and rotate around ITS axis.
+
+A femur pointing northeast needs a different rotation vector to
+"lift upward" than a femur pointing southwest. Global X lifts one
+and twists the other. Local axes lift both correctly.
+
+The bone's local Z axis (tail - head, normalized) is its length axis.
+To "bend" a joint, we rotate around the axis PERPENDICULAR to the
+bone's length and perpendicular to world-up. That's the bend axis.
 """
 
 import bpy
 import math
+import mathutils
+from mathutils import Vector, Euler
 
 CYCLE_FRAMES = 48
 CYCLES = 3
@@ -15,11 +25,11 @@ CYCLES = 3
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
 
-# v5: sweet spot — visible motion without deformation artifacts
+# Rotation amounts (degrees)
 COXA_SWING = 8
-FEMUR_LIFT = 13
-TIBIA_BEND = 9
-TARSUS_FLEX = 2
+FEMUR_LIFT = 14
+TIBIA_BEND = 10
+TARSUS_FLEX = 3
 
 BODY_SWAY = 1.2
 BODY_BOB = 1.0
@@ -33,52 +43,78 @@ def find_armature():
             return obj
     return None
 
-def set_rot(arm, bone_name, frame, rx=0, ry=0, rz=0):
+def get_bone_bend_axis(arm, bone_name):
+    """
+    Compute the axis a bone should rotate around to produce a natural bend.
+
+    The bend axis is perpendicular to BOTH the bone's length AND world-up.
+    This means rotating around it lifts/lowers the bone in the vertical plane
+    containing the bone — exactly what a joint does.
+    """
+    if bone_name not in arm.pose.bones:
+        return Vector((1, 0, 0))
+
+    bone = arm.pose.bones[bone_name].bone
+    # Bone direction in armature space
+    bone_dir = (bone.tail_local - bone.head_local).normalized()
+
+    # World up
+    up = Vector((0, 0, 1))
+
+    # Bend axis = perpendicular to bone direction AND up
+    bend = bone_dir.cross(up)
+    if bend.length < 0.001:
+        # Bone is pointing straight up/down — use a fallback
+        bend = bone_dir.cross(Vector((0, 1, 0)))
+    bend.normalize()
+
+    return bend
+
+def get_bone_swing_axis(arm, bone_name):
+    """
+    The swing axis is world-up (Z). Swinging rotates the bone
+    forward/backward in the horizontal plane — the coxa's job.
+    """
+    return Vector((0, 0, 1))
+
+def set_rot_around_axis(arm, bone_name, frame, axis, angle_deg):
+    """Rotate a bone around an arbitrary axis by angle_deg degrees."""
+    if bone_name not in arm.pose.bones:
+        return
+
+    pb = arm.pose.bones[bone_name]
+    pb.rotation_mode = 'QUATERNION'
+
+    # Create rotation quaternion around the given axis
+    angle_rad = math.radians(angle_deg)
+    quat = mathutils.Quaternion(axis, angle_rad)
+
+    pb.rotation_quaternion = quat
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
+
+def set_identity(arm, bone_name, frame):
+    """Set bone to rest rotation."""
     if bone_name not in arm.pose.bones:
         return
     pb = arm.pose.bones[bone_name]
-    pb.rotation_mode = 'XYZ'
-    pb.rotation_euler = (deg(rx), deg(ry), deg(rz))
-    pb.keyframe_insert(data_path='rotation_euler', frame=frame)
+    pb.rotation_mode = 'QUATERNION'
+    pb.rotation_quaternion = mathutils.Quaternion()
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
 
-def animate_leg(arm, leg, swing_start, swing_mid, swing_end, stance_end):
-    coxa = f'leg_{leg}_coxa'
-    femur = f'leg_{leg}_femur'
-    tibia = f'leg_{leg}_tibia'
-    tarsus = f'leg_{leg}_tarsus'
+def compose_rotations(axis1, angle1_deg, axis2, angle2_deg):
+    """Combine two axis-angle rotations into one quaternion."""
+    q1 = mathutils.Quaternion(axis1, math.radians(angle1_deg))
+    q2 = mathutils.Quaternion(axis2, math.radians(angle2_deg))
+    return q1 @ q2
 
-    side = 1 if leg.endswith('L') else -1
-
-    # STANCE START — leg planted, slightly behind
-    set_rot(arm, coxa, swing_start, ry=COXA_SWING * 0.3 * side)
-    set_rot(arm, femur, swing_start, rx=0)
-    set_rot(arm, tibia, swing_start, rx=0)
-    set_rot(arm, tarsus, swing_start, rx=0)
-
-    # LIFT — femur pulls leg up
-    lift = swing_start + int((swing_mid - swing_start) * 0.5)
-    set_rot(arm, coxa, lift, ry=0)
-    set_rot(arm, femur, lift, rx=-FEMUR_LIFT * 0.6)
-    set_rot(arm, tibia, lift, rx=TIBIA_BEND * 0.4)
-    set_rot(arm, tarsus, lift, rx=TARSUS_FLEX)
-
-    # PEAK — max height, reaching forward
-    set_rot(arm, coxa, swing_mid, ry=-COXA_SWING * 0.5 * side)
-    set_rot(arm, femur, swing_mid, rx=-FEMUR_LIFT)
-    set_rot(arm, tibia, swing_mid, rx=TIBIA_BEND)
-    set_rot(arm, tarsus, swing_mid, rx=TARSUS_FLEX * 0.5)
-
-    # PLANT — leg comes down
-    set_rot(arm, coxa, swing_end, ry=-COXA_SWING * 0.3 * side)
-    set_rot(arm, femur, swing_end, rx=-FEMUR_LIFT * 0.1)
-    set_rot(arm, tibia, swing_end, rx=TIBIA_BEND * 0.1)
-    set_rot(arm, tarsus, swing_end, rx=0)
-
-    # STANCE — planted, pushes back
-    set_rot(arm, coxa, stance_end, ry=COXA_SWING * 0.3 * side)
-    set_rot(arm, femur, stance_end, rx=0)
-    set_rot(arm, tibia, stance_end, rx=0)
-    set_rot(arm, tarsus, stance_end, rx=0)
+def set_rot_composed(arm, bone_name, frame, quat):
+    """Set bone rotation from a quaternion."""
+    if bone_name not in arm.pose.bones:
+        return
+    pb = arm.pose.bones[bone_name]
+    pb.rotation_mode = 'QUATERNION'
+    pb.rotation_quaternion = quat
+    pb.keyframe_insert(data_path='rotation_quaternion', frame=frame)
 
 def animate():
     arm = find_armature()
@@ -93,22 +129,78 @@ def animate():
     if arm.animation_data and arm.animation_data.action:
         bpy.data.actions.remove(arm.animation_data.action)
 
-    print("Walk cycle v3 — gentle for 3k mesh")
+    print("Walk cycle v6 — local bone axes")
+
+    # Precompute bend and swing axes for each leg bone
+    axes = {}
+    for leg in GROUP_A + GROUP_B:
+        for seg in ['coxa', 'femur', 'tibia', 'tarsus']:
+            name = f'leg_{leg}_{seg}'
+            axes[name] = {
+                'bend': get_bone_bend_axis(arm, name),
+                'swing': get_bone_swing_axis(arm, name),
+            }
+            if seg == 'coxa':
+                print(f"  {name} bend axis: ({axes[name]['bend'].x:.2f}, {axes[name]['bend'].y:.2f}, {axes[name]['bend'].z:.2f})")
+
     total_frames = CYCLE_FRAMES * CYCLES
     half = CYCLE_FRAMES // 2
+
+    def animate_leg(leg, swing_start, swing_mid, swing_end, stance_end):
+        coxa = f'leg_{leg}_coxa'
+        femur = f'leg_{leg}_femur'
+        tibia = f'leg_{leg}_tibia'
+        tarsus = f'leg_{leg}_tarsus'
+
+        bend_c = axes[coxa]['bend']
+        bend_f = axes[femur]['bend']
+        bend_t = axes[tibia]['bend']
+        bend_ta = axes[tarsus]['bend']
+        swing_c = axes[coxa]['swing']
+
+        # STANCE START — planted
+        set_rot_around_axis(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
+        set_identity(arm, femur, swing_start)
+        set_identity(arm, tibia, swing_start)
+        set_identity(arm, tarsus, swing_start)
+
+        # LIFT — femur bends upward around its local bend axis
+        lift = swing_start + int((swing_mid - swing_start) * 0.5)
+        set_identity(arm, coxa, lift)
+        set_rot_around_axis(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.6)
+        set_rot_around_axis(arm, tibia, lift, bend_t, TIBIA_BEND * 0.4)
+        set_rot_around_axis(arm, tarsus, lift, bend_ta, TARSUS_FLEX)
+
+        # PEAK — max height
+        set_rot_around_axis(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5)
+        set_rot_around_axis(arm, femur, swing_mid, bend_f, -FEMUR_LIFT)
+        set_rot_around_axis(arm, tibia, swing_mid, bend_t, TIBIA_BEND)
+        set_rot_around_axis(arm, tarsus, swing_mid, bend_ta, TARSUS_FLEX * 0.5)
+
+        # PLANT — leg comes down
+        set_rot_around_axis(arm, coxa, swing_end, swing_c, -COXA_SWING * 0.3)
+        set_rot_around_axis(arm, femur, swing_end, bend_f, -FEMUR_LIFT * 0.1)
+        set_rot_around_axis(arm, tibia, swing_end, bend_t, TIBIA_BEND * 0.1)
+        set_identity(arm, tarsus, swing_end)
+
+        # STANCE — push back
+        set_rot_around_axis(arm, coxa, stance_end, swing_c, COXA_SWING * 0.3)
+        set_identity(arm, femur, stance_end)
+        set_identity(arm, tibia, stance_end)
+        set_identity(arm, tarsus, stance_end)
 
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
 
         for leg in GROUP_A:
-            animate_leg(arm, leg,
+            animate_leg(leg,
                 swing_start=base,
                 swing_mid=base + half // 2,
                 swing_end=base + half,
                 stance_end=base + CYCLE_FRAMES)
 
         for leg in GROUP_B:
-            animate_leg(arm, leg,
+            animate_leg(leg,
                 swing_start=base + half,
                 swing_mid=base + half + half // 2,
                 swing_end=base + CYCLE_FRAMES,
@@ -120,16 +212,19 @@ def animate():
         q3 = base + half + half // 2
         q4 = base + CYCLE_FRAMES
 
-        set_rot(arm, 'root', base, rx=0, rz=0)
-        set_rot(arm, 'root', q1, rx=BODY_BOB, rz=BODY_SWAY)
-        set_rot(arm, 'root', q2, rx=0, rz=0)
-        set_rot(arm, 'root', q3, rx=BODY_BOB, rz=-BODY_SWAY)
-        set_rot(arm, 'root', q4, rx=0, rz=0)
+        set_identity(arm, 'root', base)
+        bob_q1 = compose_rotations(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), BODY_SWAY)
+        set_rot_composed(arm, 'root', q1, bob_q1)
+        set_identity(arm, 'root', q2)
+        bob_q3 = compose_rotations(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), -BODY_SWAY)
+        set_rot_composed(arm, 'root', q3, bob_q3)
+        set_identity(arm, 'root', q4)
 
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = total_frames
     bpy.context.scene.frame_current = 0
 
+    # Smooth interpolation
     if arm.animation_data and arm.animation_data.action:
         for fc in arm.animation_data.action.fcurves:
             for kp in fc.keyframe_points:
@@ -137,7 +232,7 @@ def animate():
                 kp.handle_left_type = 'AUTO_CLAMPED'
                 kp.handle_right_type = 'AUTO_CLAMPED'
 
-    print(f"Done: {total_frames} frames. Press Space to play!")
+    print(f"Done: {total_frames} frames. Press Space!")
 
 try:
     animate()
