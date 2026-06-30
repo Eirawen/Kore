@@ -155,7 +155,7 @@ def animate():
         set_identity(arm, coxa, lift)
         set_axis_rot(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.5 * lift_mult)
         set_axis_rot(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.3 * lift_mult)
-        set_axis_rot(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX * 2)
+        set_axis_rot(arm, tarsus, lift + d2, bend_ta, -TARSUS_FLEX * 3)  # dramatic curl up
 
         # === PEAK — low, not dramatic ===
         set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.4 * swing_mult)
