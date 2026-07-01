@@ -26,12 +26,12 @@ CYCLES = 4          # more cycles to fill the same time
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
 
-# Deliberate — smaller rotations, slower pace
-COXA_SWING = 7       # short but readable steps
-FEMUR_LIFT = 12      # low but visible lift
-TIBIA_BEND = 9       # controlled
-TARSUS_FLEX = 4      # claw flex
-TARSUS_TIPTOE = 25   # en pointe — always on claw tips
+# Coxa-dominant gait — HORIZONTAL rowing, not vertical pumping
+COXA_SWING = 14      # PRIMARY actuator — forward reach, backward pull
+FEMUR_LIFT = 6       # SECONDARY — just enough to clear the ground
+TIBIA_BEND = 4       # minimal — follows the femur
+TARSUS_FLEX = 2      # minimal
+TARSUS_TIPTOE = 65   # nearly vertical — standing on the thin edge
 
 BODY_SWAY = 0.8      # minimal — controlled, stable
 BODY_BOB = 1.0       # subtle — heavy but not bouncy
@@ -168,46 +168,49 @@ def animate():
 
         swing_mid = swing_start + swing_len // 2
 
-        # === STANCE — planted, arched, tiptoe ===
-        set_axis_rot(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
+        # ROWING STROKE: reach forward → plant → pull backward
+        # Coxa does the reaching and pulling. Femur just clears the ground.
+
+        # === STANCE END — leg is BEHIND, having pulled backward ===
+        set_axis_rot(arm, coxa, swing_start, swing_c, COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, swing_start, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, swing_start, bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, swing_start, bend_ta, TARSUS_TIPTOE)
 
-        # === LIFT — arch INCREASES as leg lifts ===
-        lift = swing_start + int(swing_len * 0.3)
-        set_identity(arm, coxa, lift)
-        set_axis_rot(arm, femur, lift, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.5 * lift_mult))
-        set_axis_rot(arm, tibia, lift + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.3 * lift_mult))
+        # === LIFT — coxa swings FORWARD, femur lifts just to clear ground ===
+        lift = swing_start + int(swing_len * 0.25)
+        set_axis_rot(arm, coxa, lift, swing_c, COXA_SWING * 0.1 * swing_mult)
+        set_axis_rot(arm, femur, lift, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.7 * lift_mult))
+        set_axis_rot(arm, tibia, lift + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.4 * lift_mult))
         set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)
 
-        # === PEAK — maximum arch + lift ===
-        set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.4 * swing_mult)
+        # === REACH — coxa fully FORWARD, leg extended ahead ===
+        set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, swing_mid, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * lift_mult))
-        set_axis_rot(arm, tibia, swing_mid + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.6 * lift_mult))
+        set_axis_rot(arm, tibia, swing_mid + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.5 * lift_mult))
         set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)
 
-        # === HOVER (front legs only) — hold the reach for a beat before planting ===
+        # === HOVER (front legs) — hold the reach ===
         if is_front:
             hover = min(swing_mid + max(int(swing_len * 0.15), 1), stance_start - 2)
-            set_axis_rot(arm, coxa, hover, swing_c, -COXA_SWING * 0.35 * swing_mult)
-            set_axis_rot(arm, femur, hover, bend_f, -FEMUR_LIFT * 0.85 * lift_mult)
-            set_axis_rot(arm, tibia, hover, bend_t, -TIBIA_BEND * 0.5 * lift_mult)
+            set_axis_rot(arm, coxa, hover, swing_c, -COXA_SWING * 0.45 * swing_mult)
+            set_axis_rot(arm, femur, hover, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.5 * lift_mult))
 
-        # === PLANT — return to base arch ===
-        set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.15 * swing_mult)
-        set_axis_rot(arm, femur, stance_start, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.03))
+        # === PLANT — foot touches down AHEAD of body ===
+        set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.4 * swing_mult)
+        set_axis_rot(arm, femur, stance_start, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, min(stance_start + d, cycle_end - 1), bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, min(stance_start + d2, cycle_end - 1), bend_ta, TARSUS_TIPTOE)
 
-        # === SETTLE ===
-        settle = min(stance_start + 4, cycle_end - 3)
-        set_axis_rot(arm, coxa, settle, swing_c, -COXA_SWING * 0.05 * swing_mult)
-        set_axis_rot(arm, femur, settle, bend_f, FEMUR_ARCH)
-        set_axis_rot(arm, tibia, settle, bend_t, TIBIA_DROP)
+        # === PULL — coxa drags backward, pulling body over planted foot ===
+        mid_stance = stance_start + (cycle_end - stance_start) // 2
+        set_axis_rot(arm, coxa, mid_stance, swing_c, 0)
+        set_axis_rot(arm, femur, mid_stance, bend_f, FEMUR_ARCH)
+        set_axis_rot(arm, tibia, mid_stance, bend_t, TIBIA_DROP)
+        set_axis_rot(arm, tarsus, mid_stance, bend_ta, TARSUS_TIPTOE)
 
-        # === STANCE — arched, pushing back ===
-        set_axis_rot(arm, coxa, cycle_end, swing_c, COXA_SWING * 0.35)
+        # === PUSH FINISH — leg ends up BEHIND, ready for next swing ===
+        set_axis_rot(arm, coxa, cycle_end, swing_c, COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, cycle_end, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, cycle_end, bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
