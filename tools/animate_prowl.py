@@ -36,7 +36,7 @@ TARSUS_TIPTOE = 25   # en pointe — always on claw tips
 BODY_SWAY = 0.8      # minimal — controlled, stable
 BODY_BOB = 1.0       # subtle — heavy but not bouncy
 
-SWING_FRACTION = 0.35  # 35% swing, 65% stance — more time planted
+SWING_FRACTION = 0.50  # 50/50 — seamless alternation, no dead zone
 OVERLAP = 2            # scaled down for faster cycle
 
 def find_armature():
@@ -207,25 +207,21 @@ def animate():
         set_identity(arm, tibia, cycle_end)
         set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
 
-    # Overlap offset — Group B starts BEFORE Group A fully settles
-    # This eliminates the dead zone where all legs are planted
-    OVERLAP_OFFSET = 4  # frames of overlap at the transition
-
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
-        half = CYCLE_FRAMES // 2
+        half = CYCLE_FRAMES // 2  # with 50% swing, half = swing_len exactly
 
         for leg in GROUP_A:
             animate_leg(leg,
                 swing_start=base,
                 stance_start=base + swing_len,
-                cycle_end=base + CYCLE_FRAMES - OVERLAP_OFFSET)
+                cycle_end=base + CYCLE_FRAMES)
 
         for leg in GROUP_B:
             animate_leg(leg,
-                swing_start=base + half - OVERLAP_OFFSET,
-                stance_start=base + half - OVERLAP_OFFSET + swing_len,
-                cycle_end=base + CYCLE_FRAMES + half - OVERLAP_OFFSET)
+                swing_start=base + half,
+                stance_start=base + half + swing_len,
+                cycle_end=base + CYCLE_FRAMES + half)
 
         # Body — FORWARD TILT throughout (approaching, not standing)
         # The spider leans toward its prey. Always.
