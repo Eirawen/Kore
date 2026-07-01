@@ -20,8 +20,8 @@ import math
 import mathutils
 from mathutils import Vector
 
-CYCLE_FRAMES = 72  # slow prowl
-CYCLES = 2
+CYCLE_FRAMES = 36  # walking pace — ~1.5 seconds per stride at 24fps
+CYCLES = 4          # more cycles to fill the same time
 
 GROUP_A = ['FL', 'MR', 'RL']
 GROUP_B = ['FR', 'ML', 'RR']
@@ -37,7 +37,7 @@ BODY_SWAY = 0.8      # minimal — controlled, stable
 BODY_BOB = 1.0       # subtle — heavy but not bouncy
 
 SWING_FRACTION = 0.35  # 35% swing, 65% stance — more time planted
-OVERLAP = 3            # more overlap — each joint waits longer
+OVERLAP = 2            # scaled down for faster cycle
 
 def find_armature():
     for obj in bpy.data.objects:
@@ -184,7 +184,7 @@ def animate():
 
         # === HOVER (front legs only) — hold the reach for a beat before planting ===
         if is_front:
-            hover = swing_mid + int(swing_len * 0.15)
+            hover = min(swing_mid + max(int(swing_len * 0.15), 1), stance_start - 2)
             set_axis_rot(arm, coxa, hover, swing_c, -COXA_SWING * 0.35 * swing_mult)
             set_axis_rot(arm, femur, hover, bend_f, -FEMUR_LIFT * 0.85 * lift_mult)
             set_axis_rot(arm, tibia, hover, bend_t, -TIBIA_BEND * 0.5 * lift_mult)
@@ -243,30 +243,28 @@ def animate():
         set_composed(arm, 'root', q3, bob2)
         set_composed(arm, 'root', q4, bob_rest)
 
-        # PEDIPALPS — twitching while walking. Always sensing.
-        # Small, rapid oscillations independent of the gait cycle.
-        # The spider tastes the air even as it walks.
-        palp_l_bend = axes.get('pedipalp_L_base', {}).get('bend', Vector((1,0,0)))
-        palp_r_bend = axes.get('pedipalp_R_base', {}).get('bend', Vector((1,0,0)))
-        palp_l_tip_bend = axes.get('pedipalp_L_tip', {}).get('bend', Vector((1,0,0)))
-        palp_r_tip_bend = axes.get('pedipalp_R_tip', {}).get('bend', Vector((1,0,0)))
+    # PEDIPALPS — independent of gait cycle. Own rhythm.
+    # Runs across the FULL animation, not per-cycle.
+    palp_l_bend = axes.get('pedipalp_L_base', {}).get('bend', Vector((1,0,0)))
+    palp_r_bend = axes.get('pedipalp_R_base', {}).get('bend', Vector((1,0,0)))
+    palp_l_tip_bend = axes.get('pedipalp_L_tip', {}).get('bend', Vector((1,0,0)))
+    palp_r_tip_bend = axes.get('pedipalp_R_tip', {}).get('bend', Vector((1,0,0)))
 
-        PALP_TWITCH = 4   # small, quick
-        twitch_period = 12  # faster than the gait — independent rhythm
+    PALP_TWITCH = 4
+    twitch_period = 14  # own tempo, independent of gait
 
-        for f in range(base, base + CYCLE_FRAMES, twitch_period):
-            # Left palp reaches, right rests, then swap
-            phase = ((f - base) // twitch_period) % 2
-            if phase == 0:
-                set_axis_rot(arm, 'pedipalp_L_base', f, palp_l_bend, -PALP_TWITCH)
-                set_axis_rot(arm, 'pedipalp_L_tip', f + twitch_period // 3, palp_l_tip_bend, -PALP_TWITCH * 0.5)
-                set_identity(arm, 'pedipalp_R_base', f)
-                set_identity(arm, 'pedipalp_R_tip', f)
-            else:
-                set_identity(arm, 'pedipalp_L_base', f)
-                set_identity(arm, 'pedipalp_L_tip', f)
-                set_axis_rot(arm, 'pedipalp_R_base', f, palp_r_bend, -PALP_TWITCH)
-                set_axis_rot(arm, 'pedipalp_R_tip', f + twitch_period // 3, palp_r_tip_bend, -PALP_TWITCH * 0.5)
+    for f in range(0, total_frames, twitch_period):
+        phase = (f // twitch_period) % 2
+        if phase == 0:
+            set_axis_rot(arm, 'pedipalp_L_base', f, palp_l_bend, -PALP_TWITCH)
+            set_axis_rot(arm, 'pedipalp_L_tip', f + twitch_period // 3, palp_l_tip_bend, -PALP_TWITCH * 0.5)
+            set_identity(arm, 'pedipalp_R_base', f)
+            set_identity(arm, 'pedipalp_R_tip', f)
+        else:
+            set_identity(arm, 'pedipalp_L_base', f)
+            set_identity(arm, 'pedipalp_L_tip', f)
+            set_axis_rot(arm, 'pedipalp_R_base', f, palp_r_bend, -PALP_TWITCH)
+            set_axis_rot(arm, 'pedipalp_R_tip', f + twitch_period // 3, palp_r_tip_bend, -PALP_TWITCH * 0.5)
 
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = total_frames
