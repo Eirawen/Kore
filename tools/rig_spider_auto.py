@@ -77,14 +77,12 @@ def build():
     # Leg ML
     add_bone(arm, "leg_ML_coxa", (-0.102573, -0.076757, 0.080433), (0.189643, -0.050649, 0.104349), "cephalothorax", False)
     add_bone(arm, "leg_ML_femur", (0.189643, -0.050649, 0.104349), (0.497170, -0.071116, -0.046345), "leg_ML_coxa", True)
-    add_bone(arm, "leg_ML_tibia", (0.497170, -0.071116, -0.046345), (0.739251, -0.080135, -0.232304), "leg_ML_femur", True)
-    add_bone(arm, "leg_ML_tarsus", (0.739251, -0.080135, -0.232304), (0.843000, -0.084000, -0.312000), "leg_ML_tibia", True)
+    add_bone(arm, "leg_ML_tibia", (0.497170, -0.071116, -0.046345), (0.843000, -0.084000, -0.312000), "leg_ML_femur", True)
 
     # Leg MR
     add_bone(arm, "leg_MR_coxa", (-0.110665, -0.066143, 0.080080), (-0.438069, -0.052527, 0.088706), "cephalothorax", False)
     add_bone(arm, "leg_MR_femur", (-0.438069, -0.052527, 0.088706), (-0.717268, -0.074263, -0.048832), "leg_MR_coxa", True)
-    add_bone(arm, "leg_MR_tibia", (-0.717268, -0.074263, -0.048832), (-0.939157, -0.080380, -0.227756), "leg_MR_femur", True)
-    add_bone(arm, "leg_MR_tarsus", (-0.939157, -0.080380, -0.227756), (-1.034252, -0.083002, -0.304438), "leg_MR_tibia", True)
+    add_bone(arm, "leg_MR_tibia", (-0.717268, -0.074263, -0.048832), (-1.034252, -0.083002, -0.304438), "leg_MR_femur", True)
 
     # Leg RL
     add_bone(arm, "leg_RL_coxa", (-0.105237, 0.193772, 0.058956), (0.152510, 0.266178, 0.165641), "cephalothorax", False)
@@ -95,8 +93,7 @@ def build():
     # Leg RR
     add_bone(arm, "leg_RR_coxa", (-0.108641, 0.181001, 0.059200), (-0.659861, 0.367471, 0.026802), "cephalothorax", False)
     add_bone(arm, "leg_RR_femur", (-0.659861, 0.367471, 0.026802), (-0.783129, 0.524928, -0.248361), "leg_RR_coxa", True)
-    add_bone(arm, "leg_RR_tibia", (-0.783129, 0.524928, -0.248361), (-0.839739, 0.753878, -0.292908), "leg_RR_femur", True)
-    add_bone(arm, "leg_RR_tarsus", (-0.839739, 0.753878, -0.292908), (-0.864000, 0.852000, -0.312000), "leg_RR_tibia", True)
+    add_bone(arm, "leg_RR_tibia", (-0.783129, 0.524928, -0.248361), (-0.864000, 0.852000, -0.312000), "leg_RR_femur", True)
 
     add_bone(arm, "pedipalp_L_base", (-0.126000, -0.138000, 0.093000), (-0.225000, -0.312000, 0.153000), "cephalothorax")
     add_bone(arm, "pedipalp_L_tip", (-0.225000, -0.312000, 0.153000), (-0.267000, -0.516000, 0.114000), "pedipalp_L_base", True)

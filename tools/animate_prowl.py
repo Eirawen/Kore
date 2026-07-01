@@ -143,6 +143,8 @@ def animate():
         coxa = f'leg_{leg}_coxa'
         femur = f'leg_{leg}_femur'
         tibia = f'leg_{leg}_tibia'
+        # Some legs don't have a tarsus bone — tiptoe goes on tibia instead
+        has_tarsus = f'leg_{leg}_tarsus' in arm.pose.bones
         tarsus = f'leg_{leg}_tarsus'
 
         bend_f = axes[femur]['bend']
@@ -175,20 +177,23 @@ def animate():
         set_axis_rot(arm, coxa, swing_start, swing_c, COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, swing_start, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, swing_start, bend_t, TIBIA_DROP)
-        set_axis_rot(arm, tarsus, swing_start, bend_ta, TARSUS_TIPTOE)
+        if has_tarsus:
+            set_axis_rot(arm, tarsus, swing_start, bend_ta, TARSUS_TIPTOE)
 
         # === LIFT — coxa swings FORWARD, femur lifts just to clear ground ===
         lift = swing_start + int(swing_len * 0.25)
         set_axis_rot(arm, coxa, lift, swing_c, COXA_SWING * 0.1 * swing_mult)
         set_axis_rot(arm, femur, lift, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.7 * lift_mult))
         set_axis_rot(arm, tibia, lift + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.4 * lift_mult))
-        set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)
+        if has_tarsus:
+            set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)
 
         # === REACH — coxa fully FORWARD, leg extended ahead ===
         set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, swing_mid, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * lift_mult))
         set_axis_rot(arm, tibia, swing_mid + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.5 * lift_mult))
-        set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)
+        if has_tarsus:
+            set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)
 
         # === HOVER (front legs) — hold the reach ===
         if is_front:
@@ -200,7 +205,8 @@ def animate():
         set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.4 * swing_mult)
         set_axis_rot(arm, femur, stance_start, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, min(stance_start + d, cycle_end - 1), bend_t, TIBIA_DROP)
-        set_axis_rot(arm, tarsus, min(stance_start + d2, cycle_end - 1), bend_ta, TARSUS_TIPTOE)
+        if has_tarsus:
+            set_axis_rot(arm, tarsus, min(stance_start + d2, cycle_end - 1), bend_ta, TARSUS_TIPTOE)
 
         # === PULL — coxa drags backward, pulling body over planted foot ===
         mid_stance = stance_start + (cycle_end - stance_start) // 2
@@ -213,7 +219,8 @@ def animate():
         set_axis_rot(arm, coxa, cycle_end, swing_c, COXA_SWING * 0.5 * swing_mult)
         set_axis_rot(arm, femur, cycle_end, bend_f, FEMUR_ARCH)
         set_axis_rot(arm, tibia, cycle_end, bend_t, TIBIA_DROP)
-        set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
+        if has_tarsus:
+            set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
 
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
