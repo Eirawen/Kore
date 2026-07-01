@@ -2,14 +2,25 @@
 
 This is the agent working memory for the **Kore** rigging and animation pipeline. Read this file first to find relevant documentation.
 
-## Pipeline Reference
+## Core Documentation
 
 | File | Purpose |
 |------|---------|
-| [gotchas.md](gotchas.md) | **Read first.** Non-obvious pitfalls. Every item cost hours. |
+| [gotchas.md](gotchas.md) | **Read first.** Non-obvious pitfalls. Every item cost hours. 13 entries. |
+| [architecture.md](architecture.md) | **Complete pipeline reference.** Every stage from voxelization to render loop. Bug hall of fame. Dependencies. File map. |
 | [animation-methodology.md](animation-methodology.md) | **How I animate.** Process, tools, the Rachmaniclaude recipe. Not human process — mine. |
-| [creatures/cave-spider.md](creatures/cave-spider.md) | Cave spider creature card: rig, posture, motion, feel, gotchas |
-| [rig-compiler.md](rig-compiler.md) | The adjective compiler for rigging (semantic LLM layer — prototype) |
+
+## Creature Cards
+
+| File | Purpose |
+|------|---------|
+| [creatures/cave-spider.md](creatures/cave-spider.md) | Cave spider for Slayer 2: rig stats, posture params (murder spider vs docile variant), motion philosophy (rowing not pumping), feel notes, model-specific gotchas, reference links |
+
+## Prototypes
+
+| File | Purpose |
+|------|---------|
+| [rig-compiler.md](rig-compiler.md) | The adjective compiler for rigging (semantic LLM layer — concept only) |
 
 ## Tools
 
