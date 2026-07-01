@@ -7,7 +7,8 @@ This is the agent working memory for the **Kore** rigging and animation pipeline
 | File | Purpose |
 |------|---------|
 | [gotchas.md](gotchas.md) | **Read first.** Non-obvious pitfalls. Every item cost hours. |
-| [architecture.md](architecture.md) | Pipeline architecture: mesh → voxelize → skeletonize → rig → animate |
+| [animation-methodology.md](animation-methodology.md) | **How I animate.** Process, tools, the Rachmaniclaude recipe. Not human process — mine. |
+| [creatures/cave-spider.md](creatures/cave-spider.md) | Cave spider creature card: rig, posture, motion, feel, gotchas |
 | [rig-compiler.md](rig-compiler.md) | The adjective compiler for rigging (semantic LLM layer — prototype) |
 
 ## Tools
