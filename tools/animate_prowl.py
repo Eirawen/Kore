@@ -219,7 +219,7 @@ def animate():
             animate_leg(leg,
                 swing_start=base,
                 stance_start=base + swing_len,
-                cycle_end=base + CYCLE_FRAMES)
+                cycle_end=base + CYCLE_FRAMES - OVERLAP_OFFSET)
 
         for leg in GROUP_B:
             animate_leg(leg,
