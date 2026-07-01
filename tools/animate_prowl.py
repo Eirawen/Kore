@@ -207,6 +207,10 @@ def animate():
         set_identity(arm, tibia, cycle_end)
         set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
 
+    # Overlap offset — Group B starts BEFORE Group A fully settles
+    # This eliminates the dead zone where all legs are planted
+    OVERLAP_OFFSET = 4  # frames of overlap at the transition
+
     for cycle in range(CYCLES):
         base = cycle * CYCLE_FRAMES
         half = CYCLE_FRAMES // 2
@@ -219,9 +223,9 @@ def animate():
 
         for leg in GROUP_B:
             animate_leg(leg,
-                swing_start=base + half,
-                stance_start=base + half + swing_len,
-                cycle_end=base + CYCLE_FRAMES + half)
+                swing_start=base + half - OVERLAP_OFFSET,
+                stance_start=base + half - OVERLAP_OFFSET + swing_len,
+                cycle_end=base + CYCLE_FRAMES + half - OVERLAP_OFFSET)
 
         # Body — FORWARD TILT throughout (approaching, not standing)
         # The spider leans toward its prey. Always.
