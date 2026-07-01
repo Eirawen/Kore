@@ -36,6 +36,11 @@ TARSUS_TIPTOE = 25   # en pointe — always on claw tips
 BODY_SWAY = 0.8      # minimal — controlled, stable
 BODY_BOB = 1.0       # subtle — heavy but not bouncy
 
+# POSTURE — constant leg arch. Spiders stand with legs arched UP,
+# body hanging below. This is the base pose all animation layers on.
+FEMUR_ARCH = -28     # steep arch — tent poles, body hangs below
+TIBIA_DROP = 18      # steep drop back to ground — sharp knee bend
+
 SWING_FRACTION = 0.50  # 50/50 — seamless alternation, no dead zone
 OVERLAP = 2            # scaled down for faster cycle
 
@@ -163,23 +168,23 @@ def animate():
 
         swing_mid = swing_start + swing_len // 2
 
-        # === STANCE — planted, tiptoe, coxa pushing back ===
+        # === STANCE — planted, arched, tiptoe ===
         set_axis_rot(arm, coxa, swing_start, swing_c, COXA_SWING * 0.3)
-        set_identity(arm, femur, swing_start)
-        set_identity(arm, tibia, swing_start)
+        set_axis_rot(arm, femur, swing_start, bend_f, FEMUR_ARCH)
+        set_axis_rot(arm, tibia, swing_start, bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, swing_start, bend_ta, TARSUS_TIPTOE)
 
-        # === LIFT — front legs reach UP and OUT, rear legs barely lift ===
+        # === LIFT — arch INCREASES as leg lifts ===
         lift = swing_start + int(swing_len * 0.3)
         set_identity(arm, coxa, lift)
-        set_axis_rot(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.5 * lift_mult)
-        set_axis_rot(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.3 * lift_mult)
+        set_axis_rot(arm, femur, lift, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.5 * lift_mult))
+        set_axis_rot(arm, tibia, lift + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.3 * lift_mult))
         set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)
 
-        # === PEAK — front legs are EXTENDED, feeling for prey ===
+        # === PEAK — maximum arch + lift ===
         set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.4 * swing_mult)
-        set_axis_rot(arm, femur, swing_mid, bend_f, -FEMUR_LIFT * lift_mult)
-        set_axis_rot(arm, tibia, swing_mid + d, bend_t, -TIBIA_BEND * 0.6 * lift_mult)
+        set_axis_rot(arm, femur, swing_mid, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * lift_mult))
+        set_axis_rot(arm, tibia, swing_mid + d, bend_t, TIBIA_DROP + (-TIBIA_BEND * 0.6 * lift_mult))
         set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)
 
         # === HOVER (front legs only) — hold the reach for a beat before planting ===
@@ -189,22 +194,22 @@ def animate():
             set_axis_rot(arm, femur, hover, bend_f, -FEMUR_LIFT * 0.85 * lift_mult)
             set_axis_rot(arm, tibia, hover, bend_t, -TIBIA_BEND * 0.5 * lift_mult)
 
-        # === PLANT — careful placement ===
+        # === PLANT — return to base arch ===
         set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.15 * swing_mult)
-        set_axis_rot(arm, femur, stance_start, bend_f, -FEMUR_LIFT * 0.03)
-        set_axis_rot(arm, tibia, min(stance_start + d, cycle_end - 1), bend_t, TIBIA_BEND * 0.02)
+        set_axis_rot(arm, femur, stance_start, bend_f, FEMUR_ARCH + (-FEMUR_LIFT * 0.03))
+        set_axis_rot(arm, tibia, min(stance_start + d, cycle_end - 1), bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, min(stance_start + d2, cycle_end - 1), bend_ta, TARSUS_TIPTOE)
 
         # === SETTLE ===
         settle = min(stance_start + 4, cycle_end - 3)
         set_axis_rot(arm, coxa, settle, swing_c, -COXA_SWING * 0.05 * swing_mult)
-        set_identity(arm, femur, settle)
-        set_identity(arm, tibia, settle)
+        set_axis_rot(arm, femur, settle, bend_f, FEMUR_ARCH)
+        set_axis_rot(arm, tibia, settle, bend_t, TIBIA_DROP)
 
-        # === STANCE — slow push back ===
+        # === STANCE — arched, pushing back ===
         set_axis_rot(arm, coxa, cycle_end, swing_c, COXA_SWING * 0.35)
-        set_identity(arm, femur, cycle_end)
-        set_identity(arm, tibia, cycle_end)
+        set_axis_rot(arm, femur, cycle_end, bend_f, FEMUR_ARCH)
+        set_axis_rot(arm, tibia, cycle_end, bend_t, TIBIA_DROP)
         set_axis_rot(arm, tarsus, cycle_end, bend_ta, TARSUS_TIPTOE)
 
     for cycle in range(CYCLES):
