@@ -387,9 +387,21 @@ for label, path in legs_refined.items():
 
 # Find joints on refined + centered paths
 print("\n[4] Detecting joints on centered paths...")
+MIN_JOINTS = 5  # every leg MUST have at least 5 joints (4 bones: coxa/femur/tibia/tarsus)
 leg_joints = {}
 for label, path in legs_refined.items():
     joints = find_joints(path, n_joints=5)
+
+    # Force minimum joints — if too few, subdivide the last segment to create a tarsus
+    while len(joints) < MIN_JOINTS:
+        # Split the first segment (foot end before reversal) at 70/30
+        # This creates a tarsus at the foot tip
+        foot = joints[0]
+        next_joint = joints[1]
+        split_point = foot + (next_joint - foot) * 0.3  # 30% from foot = tarsus joint
+        joints = np.vstack([[foot], [split_point], joints[1:]])
+        print(f"    Leg {label}: subdivided to create tarsus bone")
+
     leg_joints[label] = joints
     print(f"    Leg {label}: {len(joints)} joints")
     for i, j in enumerate(joints):
