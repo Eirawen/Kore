@@ -51,6 +51,14 @@ The `set_rot(rx, ry, rz)` helper with `rotation_mode = 'XYZ'` rotates around glo
 `export KORE_ANIMATION=threat` in WSL doesn't reliably reach Windows Blender via `--background --python`. The animation defaults to "walk."
 **Fix:** Write config to a file (`tools/loop/.render_config`) and read it from the Blender script via UNC path.
 
-### 12. Blender headless path format
+### 12. Walk cycles: N groups need ≥(1/N) swing fraction for seamless gait
+For any walk cycle with N alternating leg groups, each group's swing phase must cover at least 1/N of the total cycle. Otherwise there are frames where ALL groups are in stance and nothing moves (dead zone).
+- 2 groups (alternating tripod): swing ≥ 50%
+- 3 groups (wave gait): swing ≥ 33%
+- 4 groups: swing ≥ 25%
+
+`N × swing_fraction ≥ 1.0` or the gait has gaps. "Deliberate" feel comes from amplitude and speed, not from spending more time standing still. Standing still reads as broken, not patient.
+
+### 13. Blender headless path format
 The `--python` argument to Windows Blender must use Windows UNC paths: `\\wsl.localhost\Ubuntu\path\to\script.py`. WSL paths like `/home/khaled/...` get mangled.
 **Fix:** Use `wslpath -w` to convert, or hardcode the UNC prefix.
