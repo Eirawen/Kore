@@ -9,6 +9,7 @@ This is the agent working memory for the **Kore** rigging and animation pipeline
 | [gotchas.md](gotchas.md) | **Read first.** Non-obvious pitfalls. Every item cost hours. 13 entries. |
 | [architecture.md](architecture.md) | **Complete pipeline reference.** Every stage from voxelization to render loop. Bug hall of fame. Dependencies. File map. |
 | [animation-methodology.md](animation-methodology.md) | **How I animate.** Process, tools, the Rachmaniclaude recipe. Not human process — mine. |
+| [decisions.md](decisions.md) | **Why we chose what we chose.** 12 architectural decisions with alternatives considered. Reverse-chronological. |
 
 ## Creature Cards
 
