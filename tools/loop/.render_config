@@ -1,4 +1,4 @@
-KORE_ANIMATION=threat
+KORE_ANIMATION=prowl
 KORE_RENDER_DIR=C:/Users/kmessai/Downloads/spider_render
 KORE_FRAME_RATE=24
 KORE_RESOLUTION=480x360
