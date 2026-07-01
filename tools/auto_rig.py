@@ -230,7 +230,7 @@ def find_joints(path, n_joints=5):
     joint_indices.sort()
     all_indices = [0] + joint_indices + [len(path) - 1]
 
-    # Merge tiny segments
+    # Merge tiny INTERNAL segments only — keep endpoint segments (tarsus is short!)
     total_length = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=1))
     min_seg = max(total_length / (n_joints * 3), 0.03)
 
@@ -238,9 +238,7 @@ def find_joints(path, n_joints=5):
     for i in range(1, len(all_indices) - 1):
         if np.linalg.norm(path[all_indices[i]] - path[filtered[-1]]) >= min_seg:
             filtered.append(all_indices[i])
-    end_pos = path[all_indices[-1]]
-    if len(filtered) > 1 and np.linalg.norm(end_pos - path[filtered[-1]]) < min_seg:
-        filtered.pop()
+    # ALWAYS keep the endpoint — the tarsus is supposed to be short
     filtered.append(all_indices[-1])
 
     return path[filtered]
