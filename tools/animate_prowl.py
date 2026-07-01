@@ -121,6 +121,14 @@ def animate():
                 'swing': get_swing_axis(arm, name),
             }
 
+    # Pedipalp and cephalothorax axes for menace behavior
+    for name in ['cephalothorax', 'pedipalp_L_base', 'pedipalp_L_tip',
+                  'pedipalp_R_base', 'pedipalp_R_tip']:
+        axes[name] = {
+            'bend': get_bend_axis(arm, name),
+            'swing': get_swing_axis(arm, name),
+        }
+
     total_frames = CYCLE_FRAMES * CYCLES
     swing_len = int(CYCLE_FRAMES * SWING_FRACTION)
     d = OVERLAP
@@ -139,8 +147,19 @@ def animate():
 
         is_front = leg.startswith('F')
         is_rear = leg.startswith('R')
-        lift_mult = 1.15 if is_front else (0.85 if is_rear else 1.0)
-        swing_mult = 1.2 if is_front else (0.7 if is_rear else 1.0)
+
+        # Front legs are EXPLORATORY — they reach further, lift higher, feel the space
+        # Mid legs are WORKHORSES — steady, reliable
+        # Rear legs are PUSHERS — compact, powerful, close to ground
+        if is_front:
+            lift_mult = 1.4     # front legs lift MORE — they're sensing
+            swing_mult = 1.5    # front legs REACH further forward
+        elif is_rear:
+            lift_mult = 0.7     # rear legs stay low — they push
+            swing_mult = 0.6    # rear legs barely swing — compact strokes
+        else:
+            lift_mult = 1.0
+            swing_mult = 1.0
 
         swing_mid = swing_start + swing_len // 2
 
@@ -150,18 +169,25 @@ def animate():
         set_identity(arm, tibia, swing_start)
         set_axis_rot(arm, tarsus, swing_start, bend_ta, TARSUS_TIPTOE)
 
-        # === LIFT — slow, controlled ===
+        # === LIFT — front legs reach UP and OUT, rear legs barely lift ===
         lift = swing_start + int(swing_len * 0.3)
         set_identity(arm, coxa, lift)
         set_axis_rot(arm, femur, lift, bend_f, -FEMUR_LIFT * 0.5 * lift_mult)
         set_axis_rot(arm, tibia, lift + d, bend_t, -TIBIA_BEND * 0.3 * lift_mult)
-        set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)  # maintain tiptoe, no flipper
+        set_axis_rot(arm, tarsus, lift + d2, bend_ta, TARSUS_TIPTOE)
 
-        # === PEAK — low, not dramatic ===
+        # === PEAK — front legs are EXTENDED, feeling for prey ===
         set_axis_rot(arm, coxa, swing_mid, swing_c, -COXA_SWING * 0.4 * swing_mult)
         set_axis_rot(arm, femur, swing_mid, bend_f, -FEMUR_LIFT * lift_mult)
         set_axis_rot(arm, tibia, swing_mid + d, bend_t, -TIBIA_BEND * 0.6 * lift_mult)
-        set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)  # stays tiptoe throughout
+        set_axis_rot(arm, tarsus, swing_mid + d2, bend_ta, TARSUS_TIPTOE)
+
+        # === HOVER (front legs only) — hold the reach for a beat before planting ===
+        if is_front:
+            hover = swing_mid + int(swing_len * 0.15)
+            set_axis_rot(arm, coxa, hover, swing_c, -COXA_SWING * 0.35 * swing_mult)
+            set_axis_rot(arm, femur, hover, bend_f, -FEMUR_LIFT * 0.85 * lift_mult)
+            set_axis_rot(arm, tibia, hover, bend_t, -TIBIA_BEND * 0.5 * lift_mult)
 
         # === PLANT — careful placement ===
         set_axis_rot(arm, coxa, stance_start, swing_c, -COXA_SWING * 0.15 * swing_mult)
@@ -197,19 +223,50 @@ def animate():
                 stance_start=base + half + swing_len,
                 cycle_end=base + CYCLE_FRAMES + half)
 
-        # Body — minimal, controlled
+        # Body — FORWARD TILT throughout (approaching, not standing)
+        # The spider leans toward its prey. Always.
         q1 = base + CYCLE_FRAMES // 4
         q2 = base + CYCLE_FRAMES // 2
         q3 = base + 3 * CYCLE_FRAMES // 4
         q4 = base + CYCLE_FRAMES
 
-        set_identity(arm, 'root', base)
-        bob1 = compose_rot(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), BODY_SWAY)
+        ceph_bend = axes['cephalothorax']['bend']
+        FORWARD_LEAN = -3  # constant forward tilt — approaching
+
+        bob1 = compose_rot(Vector((1,0,0)), BODY_BOB + FORWARD_LEAN, Vector((0,0,1)), BODY_SWAY)
+        bob_rest = compose_rot(Vector((1,0,0)), FORWARD_LEAN, Vector((0,0,1)), 0)
+        bob2 = compose_rot(Vector((1,0,0)), BODY_BOB + FORWARD_LEAN, Vector((0,0,1)), -BODY_SWAY)
+
+        set_composed(arm, 'root', base, bob_rest)
         set_composed(arm, 'root', q1, bob1)
-        set_identity(arm, 'root', q2)
-        bob2 = compose_rot(Vector((1,0,0)), BODY_BOB, Vector((0,0,1)), -BODY_SWAY)
+        set_composed(arm, 'root', q2, bob_rest)
         set_composed(arm, 'root', q3, bob2)
-        set_identity(arm, 'root', q4)
+        set_composed(arm, 'root', q4, bob_rest)
+
+        # PEDIPALPS — twitching while walking. Always sensing.
+        # Small, rapid oscillations independent of the gait cycle.
+        # The spider tastes the air even as it walks.
+        palp_l_bend = axes.get('pedipalp_L_base', {}).get('bend', Vector((1,0,0)))
+        palp_r_bend = axes.get('pedipalp_R_base', {}).get('bend', Vector((1,0,0)))
+        palp_l_tip_bend = axes.get('pedipalp_L_tip', {}).get('bend', Vector((1,0,0)))
+        palp_r_tip_bend = axes.get('pedipalp_R_tip', {}).get('bend', Vector((1,0,0)))
+
+        PALP_TWITCH = 4   # small, quick
+        twitch_period = 12  # faster than the gait — independent rhythm
+
+        for f in range(base, base + CYCLE_FRAMES, twitch_period):
+            # Left palp reaches, right rests, then swap
+            phase = ((f - base) // twitch_period) % 2
+            if phase == 0:
+                set_axis_rot(arm, 'pedipalp_L_base', f, palp_l_bend, -PALP_TWITCH)
+                set_axis_rot(arm, 'pedipalp_L_tip', f + twitch_period // 3, palp_l_tip_bend, -PALP_TWITCH * 0.5)
+                set_identity(arm, 'pedipalp_R_base', f)
+                set_identity(arm, 'pedipalp_R_tip', f)
+            else:
+                set_identity(arm, 'pedipalp_L_base', f)
+                set_identity(arm, 'pedipalp_L_tip', f)
+                set_axis_rot(arm, 'pedipalp_R_base', f, palp_r_bend, -PALP_TWITCH)
+                set_axis_rot(arm, 'pedipalp_R_tip', f + twitch_period // 3, palp_r_tip_bend, -PALP_TWITCH * 0.5)
 
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = total_frames
