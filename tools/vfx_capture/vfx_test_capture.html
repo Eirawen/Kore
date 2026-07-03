@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spell VFX Test — Capture Mode</title>
+    <style>
+        body { margin: 0; background: #111; overflow: hidden; }
+        #info {
+            position: fixed; top: 10px; left: 10px; color: #888;
+            font: 14px monospace; pointer-events: none; z-index: 10;
+        }
+        #controls {
+            position: fixed; bottom: 10px; left: 10px; color: #aaa;
+            font: 12px monospace; z-index: 10;
+        }
+        #capture-status {
+            position: fixed; top: 10px; right: 10px; color: #4f4;
+            font: 12px monospace; z-index: 10;
+        }
+        /* Hidden container for captured frame previews */
+        #frame-strip {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div id="info">Water Strike VFX — Capture Mode | 1-4: charge/orb/impact/full | Space: burst</div>
+<div id="controls"></div>
+<div id="capture-status"></div>
+<div id="frame-strip"></div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ParticleSystem } from '/engine/ParticleSystem.js';
+
+// =============================================
+// Scene setup — preserveDrawingBuffer is THE fix
+// =============================================
+
+const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    preserveDrawingBuffer: true   // <-- Without this, toDataURL returns black
+});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a12);
+scene.fog = new THREE.FogExp2(0x0a0a12, 0.04);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(3, 3, 8);
+camera.lookAt(0, 1, 0);
+
+// Ground plane
+const groundGeo = new THREE.PlaneGeometry(40, 40);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.9 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x222244, 0.3));
+const pointLight = new THREE.PointLight(0x4488ff, 2, 20);
+pointLight.position.set(0, 3, 0);
+scene.add(pointLight);
+
+// =============================================
+// Particle system
+// =============================================
+
+const particles = new ParticleSystem(scene);
+
+particles.registerEmitter('water_charge', {
+    count: 6, life: 0.35, interval: 0.03, burstCount: 4,
+    shape: 'sphereSurface', shapeRadius: 1.2,
+    velocityMode: 'radial', speed: -3.5,
+    colorOverLife: ['#bfeaff', '#2266cc'],
+    sizeOverLife: [0.6, 0.15],
+    opacityOverLife: [0.9, 0], gravity: 0,
+});
+
+particles.registerEmitter('water_orb', {
+    count: 3, life: 0.25, interval: 0.02, burstCount: 3,
+    shape: 'sphere', shapeRadius: 0.15, velocityMode: 'none',
+    colorOverLife: ['#eaffff', '#66aaff'],
+    sizeOverLife: [0.3, 0.9, 0.4],
+    opacityOverLife: [1, 0], gravity: 0,
+});
+
+particles.registerEmitter('water_impact_ring', {
+    count: 24, life: 0.5,
+    shape: 'ring', shapeRadius: 0.3, direction: [0, 1, 0],
+    velocityMode: 'radial', speed: 9, drag: 0.15,
+    colorOverLife: ['#eaffff', '#2266cc', '#113355'],
+    sizeOverLife: [0.5, 1.1, 0], gravity: -4,
+});
+
+particles.registerEmitter('water_impact_spray', {
+    count: 16, life: 0.6,
+    shape: 'cone', shapeAngle: 30, direction: [0, 1, 0],
+    velocityMode: 'cone', speed: 12,
+    colorOverLife: ['#eaffff', '#4488dd'],
+    sizeOverLife: [0.8, 0], gravity: -25, floor: true,
+});
+
+particles.registerEmitter('water_burst', {
+    count: 30, life: 0.8,
+    shape: 'sphere', shapeRadius: 0.5,
+    velocityMode: 'radial', speed: 5,
+    colorOverLife: ['#eaffff', '#2266cc', '#001133'],
+    sizeOverLife: [0.4, 1.0, 0],
+    opacityOverLife: [1, 0.8, 0],
+    gravity: -2,
+});
+
+particles.registerEmitter('huge_test', {
+    count: 50, life: 1.0,
+    shape: 'sphere', shapeRadius: 0.8,
+    velocityMode: 'radial', speed: 8,
+    colorOverLife: ['#ffffff', '#88ccff', '#2244aa', '#001133'],
+    sizeOverLife: [0.3, 1.2, 0.5, 0],
+    opacityOverLife: [1, 0.9, 0.4, 0],
+    gravity: -3,
+});
+
+// =============================================
+// Spell sequence (same as original)
+// =============================================
+
+const CAST_POINT = new THREE.Vector3(0, 2, 0);
+const IMPACT_POINT = new THREE.Vector3(0, 2, -12);
+
+let activeCharge = null;
+let activeOrb = null;
+let activeTrail = null;
+let projectilePos = new THREE.Vector3();
+let casting = false;
+let castPhase = 'idle';
+let castTimer = 0;
+
+const CHARGE_DURATION = 0.6;
+const FLIGHT_DURATION = 0.5;
+const FLIGHT_SPEED = 24;
+
+function startFullSequence() {
+    if (casting) return;
+    casting = true;
+    castPhase = 'charging';
+    castTimer = 0;
+    projectilePos.copy(CAST_POINT);
+
+    if (particles.createPersistentEmitter) {
+        activeCharge = particles.createPersistentEmitter('water_charge', CAST_POINT.x, CAST_POINT.y, CAST_POINT.z);
+        activeOrb = particles.createPersistentEmitter('water_orb', CAST_POINT.x, CAST_POINT.y, CAST_POINT.z);
+    }
+
+    pointLight.color.set(0x66aaff);
+    pointLight.intensity = 5;
+}
+
+function updateSequence(dt) {
+    if (!casting) return;
+    castTimer += dt;
+
+    if (castPhase === 'charging') {
+        pointLight.intensity = 5 + Math.sin(castTimer * 15) * 2;
+
+        if (castTimer >= CHARGE_DURATION) {
+            castPhase = 'flying';
+            castTimer = 0;
+
+            if (activeCharge && particles.removePersistentEmitter) {
+                particles.removePersistentEmitter(activeCharge);
+                activeCharge = null;
+            }
+
+            if (particles.createTrail) {
+                activeTrail = particles.createTrail({
+                    color: ['#eaffff', '#2266cc'],
+                    width: 0.7,
+                    widthOverTrail: [1, 0.1],
+                    opacityOverTrail: [0.9, 0],
+                    pointLife: 0.22,
+                    maxPoints: 24,
+                });
+            }
+        }
+    }
+
+    if (castPhase === 'flying') {
+        projectilePos.z -= FLIGHT_SPEED * dt;
+
+        if (activeOrb && particles.setPersistentEmitterPosition) {
+            particles.setPersistentEmitterPosition(activeOrb, projectilePos.x, projectilePos.y, projectilePos.z);
+        }
+
+        if (activeTrail && particles.extendTrail) {
+            particles.extendTrail(activeTrail, projectilePos.x, projectilePos.y, projectilePos.z);
+        }
+
+        pointLight.position.copy(projectilePos);
+        pointLight.intensity = 8;
+
+        if (castTimer >= FLIGHT_DURATION) {
+            if (activeOrb && particles.removePersistentEmitter) {
+                particles.removePersistentEmitter(activeOrb);
+                activeOrb = null;
+            }
+            if (activeTrail && particles.endTrail) {
+                particles.endTrail(activeTrail);
+                activeTrail = null;
+            }
+
+            particles.emit('water_impact_ring', projectilePos.x, projectilePos.z);
+            particles.emit('water_impact_spray', projectilePos.x, projectilePos.z);
+
+            pointLight.intensity = 15;
+            setTimeout(() => {
+                pointLight.intensity = 2;
+                pointLight.position.set(0, 3, 0);
+                pointLight.color.set(0x4488ff);
+            }, 200);
+
+            casting = false;
+            castPhase = 'idle';
+        }
+    }
+}
+
+// =============================================
+// Input
+// =============================================
+
+document.addEventListener('keydown', (e) => {
+    const cx = CAST_POINT.x, cy = CAST_POINT.y, cz = CAST_POINT.z;
+    switch (e.key) {
+        case '1': particles.emitWorld('water_charge', cx, cy, cz); break;
+        case '2': particles.emitWorld('water_orb', cx, cy, cz); break;
+        case '3':
+            particles.emitWorld('water_impact_ring', cx, cy, cz);
+            particles.emitWorld('water_impact_spray', cx, cy, cz);
+            break;
+        case '4': startFullSequence(); break;
+        case ' ': particles.emitWorld('water_burst', cx, cy, cz); break;
+    }
+});
+
+renderer.domElement.addEventListener('click', () => {
+    const cx = CAST_POINT.x, cy = CAST_POINT.y, cz = CAST_POINT.z;
+    particles.emitWorld('water_burst', cx, cy, cz);
+});
+
+// =============================================
+// FRAME CAPTURE SYSTEM
+// =============================================
+//
+// This is the core addition. Because preserveDrawingBuffer is true,
+// canvas.toDataURL() works at any time — not just within the rAF callback.
+// But we also provide an in-loop capture for maximum reliability.
+//
+
+const captureState = {
+    capturing: false,
+    frames: [],          // Array of {dataURL, timestamp, frameNumber}
+    frameCount: 0,
+    maxFrames: 0,
+    interval: 1,         // Capture every Nth render frame
+    renderFrameIndex: 0,
+    onComplete: null,
+    startTime: 0,
+};
+
+/**
+ * Capture N frames from the render loop.
+ * Returns a promise that resolves with an array of data URLs.
+ *
+ * @param {number} count - Number of frames to capture
+ * @param {object} opts
+ * @param {number} opts.interval - Capture every Nth frame (default 1 = every frame)
+ * @param {string} opts.format - 'image/png' or 'image/jpeg' (default png)
+ * @param {number} opts.quality - JPEG quality 0-1 (default 0.92)
+ * @param {number} opts.width - Resize canvas before capture (optional)
+ * @param {number} opts.height - Resize canvas before capture (optional)
+ */
+function captureFrames(count = 8, opts = {}) {
+    return new Promise((resolve) => {
+        const format = opts.format || 'image/png';
+        const quality = opts.quality || 0.92;
+
+        captureState.capturing = true;
+        captureState.frames = [];
+        captureState.frameCount = 0;
+        captureState.maxFrames = count;
+        captureState.interval = opts.interval || 1;
+        captureState.renderFrameIndex = 0;
+        captureState.startTime = performance.now();
+        captureState.format = format;
+        captureState.quality = quality;
+        captureState.onComplete = resolve;
+
+        updateStatus(`Capturing 0/${count} frames...`);
+    });
+}
+
+/**
+ * Capture a single frame immediately (synchronous).
+ * Works because preserveDrawingBuffer is true.
+ */
+function captureOneFrame(format = 'image/png', quality = 0.92) {
+    return renderer.domElement.toDataURL(format, quality);
+}
+
+/**
+ * Fire a spell and capture the full animation.
+ * This is the main entry point for agent use.
+ *
+ * @param {string} spell - 'burst', 'charge', 'orb', 'impact', 'full', or emitter name
+ * @param {number} frames - Number of frames to capture (default 12)
+ * @param {number} interval - Capture every Nth frame (default 2)
+ * @returns {Promise<{frames: string[], duration: number, spell: string}>}
+ */
+async function fireAndCapture(spell = 'burst', frames = 12, interval = 2) {
+    // Fire the spell — use emitWorld(name, x, y, z) for world coordinates.
+    // emit() uses server coords that apply a -1000 offset, placing particles off-camera.
+    const cx = CAST_POINT.x, cy = CAST_POINT.y, cz = CAST_POINT.z;
+    switch (spell) {
+        case 'burst':
+            particles.emitWorld('water_burst', cx, cy, cz);
+            break;
+        case 'charge':
+            particles.emitWorld('water_charge', cx, cy, cz);
+            break;
+        case 'orb':
+            particles.emitWorld('water_orb', cx, cy, cz);
+            break;
+        case 'impact':
+            particles.emitWorld('water_impact_ring', cx, cy, cz);
+            particles.emitWorld('water_impact_spray', cx, cy, cz);
+            break;
+        case 'full':
+            startFullSequence();
+            break;
+        default:
+            // Try as raw emitter name
+            particles.emitWorld(spell, cx, cy, cz);
+            break;
+    }
+
+    // Wait one frame for particles to spawn
+    await new Promise(r => requestAnimationFrame(r));
+
+    // Capture
+    const captured = await captureFrames(frames, { interval });
+    const duration = captured.length > 0
+        ? captured[captured.length - 1].timestamp - captured[0].timestamp
+        : 0;
+
+    return {
+        frames: captured.map(f => f.dataURL),
+        duration: Math.round(duration),
+        spell,
+        count: captured.length,
+    };
+}
+
+/**
+ * Save a single captured frame as a downloadable PNG.
+ * Useful for manual testing.
+ */
+function downloadFrame(dataURL, filename = 'vfx_frame.png') {
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = filename;
+    a.click();
+}
+
+/**
+ * Build a contact sheet (grid of frames) as a single canvas.
+ * Returns a data URL of the grid image.
+ *
+ * @param {string[]} frameDataURLs - Array of data URL strings
+ * @param {number} cols - Number of columns (default 4)
+ * @param {number} thumbWidth - Width of each thumbnail (default 480)
+ */
+async function buildContactSheet(frameDataURLs, cols = 4, thumbWidth = 480) {
+    const images = await Promise.all(frameDataURLs.map(url => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.src = url;
+        });
+    }));
+
+    if (images.length === 0) return null;
+
+    const aspect = images[0].height / images[0].width;
+    const thumbHeight = Math.round(thumbWidth * aspect);
+    const rows = Math.ceil(images.length / cols);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * thumbWidth;
+    canvas.height = rows * thumbHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    images.forEach((img, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        ctx.drawImage(img, col * thumbWidth, row * thumbHeight, thumbWidth, thumbHeight);
+
+        // Frame number label
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(col * thumbWidth, row * thumbHeight, 40, 20);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`#${i}`, col * thumbWidth + 4, row * thumbHeight + 14);
+    });
+
+    return canvas.toDataURL('image/png');
+}
+
+function updateStatus(msg) {
+    const el = document.getElementById('capture-status');
+    if (el) el.textContent = msg;
+}
+
+// =============================================
+// Render loop — with capture hook
+// =============================================
+
+let last = performance.now();
+function animate() {
+    const now = performance.now();
+    const dt = (now - last) / 1000;
+    last = now;
+
+    updateSequence(dt);
+    particles.update(dt, camera);
+    renderer.render(scene, camera);
+
+    // Capture hook — grabs frame right after render
+    if (captureState.capturing) {
+        captureState.renderFrameIndex++;
+        if (captureState.renderFrameIndex % captureState.interval === 0) {
+            const dataURL = renderer.domElement.toDataURL(
+                captureState.format, captureState.quality
+            );
+            captureState.frames.push({
+                dataURL,
+                timestamp: performance.now() - captureState.startTime,
+                frameNumber: captureState.frameCount,
+            });
+            captureState.frameCount++;
+
+            updateStatus(`Capturing ${captureState.frameCount}/${captureState.maxFrames} frames...`);
+
+            if (captureState.frameCount >= captureState.maxFrames) {
+                captureState.capturing = false;
+                updateStatus(`Captured ${captureState.frameCount} frames`);
+                if (captureState.onComplete) {
+                    captureState.onComplete(captureState.frames);
+                }
+            }
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// =============================================
+// Public API — everything an agent needs
+// =============================================
+
+window.__vfx = {
+    particles,
+    startFullSequence,
+    CAST_POINT,
+    IMPACT_POINT,
+    // Capture API
+    captureOneFrame,
+    captureFrames,
+    fireAndCapture,
+    buildContactSheet,
+    downloadFrame,
+    // Internals for debugging
+    renderer,
+    scene,
+    camera,
+};
+
+updateStatus('Capture ready');
+console.log('[VFX Capture] Ready. Use window.__vfx.fireAndCapture() or window.__vfx.captureOneFrame()');
+</script>
+</body>
+</html>

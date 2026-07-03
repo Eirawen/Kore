@@ -17,6 +17,12 @@ This is the agent working memory for the **Kore** rigging and animation pipeline
 |------|---------|
 | [creatures/cave-spider.md](creatures/cave-spider.md) | Cave spider for Slayer 2: rig stats, posture params (murder spider vs docile variant), motion philosophy (rowing not pumping), feel notes, model-specific gotchas, reference links |
 
+## VFX
+
+| File | Purpose |
+|------|---------|
+| [vfx-methodology.md](vfx-methodology.md) | **Spell VFX.** The bridge principle, five-layer recipe, capture pipeline. |
+
 ## Prototypes
 
 | File | Purpose |
