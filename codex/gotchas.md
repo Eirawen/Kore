@@ -45,13 +45,17 @@ The `set_rot(rx, ry, rz)` helper with `rotation_mode = 'XYZ'` rotates around glo
 ### 10. Blender 5.1 broke action.fcurves
 `Action.fcurves` no longer exists in Blender 5.1. FCurves are now at `action.layers[].strips[].channelbags[].fcurves`. The Bezier smoothing code needs to handle both APIs.
 
+### 11. NEVER mix rotation_euler and rotation_quaternion across actions
+(From Fable's review) `animate_feel.py` uses `rotation_euler` (XYZ mode) while walk/threat use `rotation_quaternion`. The rotation mode is per-posebone STATE, not per-action. Leftover euler channels fight quaternion channels when actions get blended or NLA-layered (which game export does). Pick quaternions everywhere.
+**Fix:** Port feel.py to quaternion rotation. 20 minutes now vs a haunted-rig afternoon later.
+
 ## Pipeline
 
-### 11. WSL→Windows environment variables are unreliable
+### 12. WSL→Windows environment variables are unreliable
 `export KORE_ANIMATION=threat` in WSL doesn't reliably reach Windows Blender via `--background --python`. The animation defaults to "walk."
 **Fix:** Write config to a file (`tools/loop/.render_config`) and read it from the Blender script via UNC path.
 
-### 12. Walk cycles: N groups need ≥(1/N) swing fraction for seamless gait
+### 13. Walk cycles: N groups need ≥(1/N) swing fraction for seamless gait
 For any walk cycle with N alternating leg groups, each group's swing phase must cover at least 1/N of the total cycle. Otherwise there are frames where ALL groups are in stance and nothing moves (dead zone).
 - 2 groups (alternating tripod): swing ≥ 50%
 - 3 groups (wave gait): swing ≥ 33%
@@ -59,6 +63,15 @@ For any walk cycle with N alternating leg groups, each group's swing phase must 
 
 `N × swing_fraction ≥ 1.0` or the gait has gaps. "Deliberate" feel comes from amplitude and speed, not from spending more time standing still. Standing still reads as broken, not patient.
 
-### 13. Blender headless path format
+### 14. Blender headless path format
 The `--python` argument to Windows Blender must use Windows UNC paths: `\\wsl.localhost\Ubuntu\path\to\script.py`. WSL paths like `/home/khaled/...` get mangled.
 **Fix:** Use `wslpath -w` to convert, or hardcode the UNC prefix.
+
+### 15. KNOWN_FEET_BLENDER is spider-specific (from Fable's review)
+The hardcoded foot positions make auto_rig.py a spider-rigger, not a creature-rigger. Generalization: feet = lowest-Z endpoints of the N longest branches, labelable by sign/rank of (x, y). One function away from rigging any creature.
+
+### 16. trace_branch neighbor selection is arbitrary (from Fable's review)
+At multi-neighbor voxels, `trace_branch` takes `neighbors[0]`. On thick limb junctions this wanders. Prefer the neighbor most aligned with the current direction (dot product) for deterministic, straighter traces.
+
+### 17. preserveDrawingBuffer for WebGL capture
+Playwright page.screenshot() does NOT capture WebGL canvas content. Canvas.toDataURL() works but ONLY with `preserveDrawingBuffer: true` on the WebGLRenderer. Without it, the draw buffer is cleared after presenting.
