@@ -244,6 +244,26 @@ def clear_anim(arm):
     clear_pose(arm)
 
 
+# ───────────────────── timing / spacing pass ─────────────────────
+# The casts were authored tight (~1.3s), so they read as a keyframe-to-
+# keyframe sprint. Real casting has CONTRAST: a deliberate gather, a HELD
+# beat on the seal (where the eye reads the orb forming), then a fast SNAP
+# release. We get that by retiming — not re-posing. Each cast carries a
+# 'retime' list of (old_frame -> new_frame) anchors; remap_frame does a
+# monotonic piecewise-linear stretch between them. Spacing is pushed into
+# the gather + hold; the pull->fling span is kept short so the release
+# stays snappy. Applied once at import so frames/phases/tests stay in sync.
+def remap_frame(f, anchors):
+    if f <= anchors[0][0]:
+        return max(1, anchors[0][1] + (f - anchors[0][0]))
+    for (o0, n0), (o1, n1) in zip(anchors, anchors[1:]):
+        if f <= o1:
+            t = (f - o0) / (o1 - o0)
+            return int(round(n0 + t * (n1 - n0)))
+    o0, n0 = anchors[-1]
+    return int(round(n0 + (f - o0)))
+
+
 # ───────────────────── the four casts ─────────────────────
 # Each entry: total frame count, per-hand key list, phase labels.
 # Key tuple: (frame, (loc), (rot_deg), pose_name-or-None)
@@ -259,6 +279,8 @@ ANIMS = {}
 # Bottom hand rise + release reuse fire's validated supination/pronation rolls.
 ANIMS['air_strike'] = {
     'frames': 78,
+    # gather 1.8x slower, seal HELD 0.33s -> 0.8s, release stays a ~0.1s snap
+    'retime': [(1, 1), (30, 52), (50, 100), (64, 118), (78, 140)],
     'right': [
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),    'idle'),
         (10, (2.30, -0.4, -1.0), (22, 9, 172),    'idle'),   # anticipation dip
@@ -290,6 +312,8 @@ ANIMS['air_strike'] = {
 # (orb forms) -> both palms rotate out -> unified forward fling -> settle.
 ANIMS['water_strike'] = {
     'frames': 78,
+    # sweep+clasp gather slowed, clasp HELD longer, unified fling stays snappy
+    'retime': [(1, 1), (28, 52), (48, 100), (62, 116), (78, 138)],
     'right': [
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),    'idle'),
         (8,  (2.40, -0.3, -1.1), (22, 9, 172),    'idle'),   # dip
@@ -321,6 +345,8 @@ ANIMS['water_strike'] = {
 # -> pull back -> palm-out forward fling -> settle. Left hand never wakes.
 ANIMS['fire_strike'] = {
     'frames': 54,
+    # deliberate present+cup, LONG flicker beat (the will gathering), snap fling
+    'retime': [(1, 1), (16, 40), (34, 88), (47, 104), (54, 116)],
     'right': [
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),   'idle'),
         (6,  (2.20, -0.2, -0.95), (22, 9, 172),  'idle'),    # dip
@@ -347,6 +373,9 @@ ANIMS['fire_strike'] = {
 # right chambers -> RIGHT punches FORWARD (propels it). No palm fling.
 ANIMS['earth_strike'] = {
     'frames': 66,
+    # slow clench+wind-up, SLAM stays fast, earth hangs kicked-up (held beat),
+    # then a snappy forward PUNCH -> settle
+    'retime': [(1, 1), (8, 18), (19, 52), (24, 58), (34, 84), (42, 96), (66, 124)],
     'right': [
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),   'idle'),
         (8,  (2.10, -0.1, -0.75), (16, 9, 172),  'fist'),    # clench
@@ -403,6 +432,28 @@ TEST_FRAMES = {
     'fire_strike':  [25, 47],
     'earth_strike': [20, 42],
 }
+
+
+def _apply_retime():
+    """Bake each cast's 'retime' anchors into its keys, total, phases, and
+    test frames — once, at import — so every downstream reader sees the new
+    timing consistently."""
+    for name, spec in ANIMS.items():
+        anchors = spec.get('retime')
+        if not anchors:
+            continue
+        for side in ('right', 'left'):
+            spec[side] = [(remap_frame(fr, anchors), loc, rot, pose)
+                          for (fr, loc, rot, pose) in spec[side]]
+        spec['phases'] = [(remap_frame(fr, anchors), lab)
+                          for fr, lab in spec['phases']]
+        spec['frames'] = remap_frame(spec['frames'], anchors)
+        if name in TEST_FRAMES:
+            TEST_FRAMES[name] = [remap_frame(fr, anchors)
+                                 for fr in TEST_FRAMES[name]]
+
+
+_apply_retime()
 
 
 def render_animation(name, samples=12):
