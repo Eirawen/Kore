@@ -112,14 +112,21 @@ for i, tip in enumerate(right_tips[:5]):
 print(f"{len(bones)} bones: 2 wrists + {len(left_tips[:5])} left + {len(right_tips[:5])} right fingers")
 
 # Generate Blender script
-bones_str = json.dumps(bones, indent=2).replace(': null', ': None')
+# json.dumps emits `null` for None; Python needs `None`. Convert every
+# standalone null token (word-boundary regex handles nested/array cases too).
+import re
+bones_str = re.sub(r'\bnull\b', 'None', json.dumps(bones, indent=2))
+
+# Blender runs on Windows and cannot resolve a bare /home/... Linux path,
+# so hand it the UNC path into the WSL filesystem.
+WIN_MESH_PATH = '\\\\wsl.localhost\\Ubuntu' + MESH_PATH.replace('/', '\\')
 
 script = f'''"""Auto-generated simple hand rig — one bone per finger."""
 import bpy
 from mathutils import Vector
 import numpy as np
 
-MESH_PATH = r'{MESH_PATH}'
+MESH_PATH = r'{WIN_MESH_PATH}'
 BONES = {bones_str}
 
 bpy.ops.object.select_all(action='SELECT')
@@ -162,43 +169,99 @@ armature.select_set(True)
 bpy.context.view_layer.objects.active = armature
 bpy.ops.object.parent_set(type='ARMATURE_NAME')
 
-# Weight painting — each vertex to nearest bone
-print("Assigning weights...")
-verts = np.array([v.co for v in mesh_obj.data.vertices])
+# ── Palm-priority two-layer weights ──
+# Diagnosis of the old failure: the finger bone chains ALL start at the palm
+# center, and each finger's first bone (finger_0 = the metacarpal) runs right
+# through the palm flesh. So a palm vertex near the thumb base was closest to
+# L_thumb_0 and got grabbed by the thumb — the reported bug. The short wrist
+# bone could never win that contest.
+#
+# Fix (the spider's body-priority trick, adapted): fold the metacarpal bones
+# (finger_0) into the PALM territory. The finger groups then contain only the
+# phalanges (finger_1..n), which live past the MCP knuckle. The palm/finger
+# boundary therefore lands cleanly on the knuckle line, and the palm keeps
+# priority on ties.
+#   Layer 1: is this vertex palm territory (wrist + metacarpals) or a finger?
+#   Layer 2: palm verts -> the wrist bone; finger verts -> nearest phalanx.
+print("Assigning weights (palm-priority two-layer)...")
+verts = np.array([np.array(v.co) for v in mesh_obj.data.vertices])
 
-bone_data = []
+def seg_dist(p, head, tail):
+    \"\"\"Distance from point p to a bone segment [head, tail].\"\"\"
+    seg = tail - head
+    L2 = float(np.dot(seg, seg))
+    if L2 < 1e-12:
+        return float(np.linalg.norm(p - head))
+    t = np.clip(np.dot(p - head, seg) / L2, 0.0, 1.0)
+    proj = head + t * seg
+    return float(np.linalg.norm(p - proj))
+
+# Sort bones: palm territory (wrist + finger_0 metacarpals) vs finger phalanges
+palm_segs = {{'L': [], 'R': []}}
+finger_segs = {{}}   # (side, finger) -> [(name, head, tail), ...] for idx >= 1
 for bd in BONES:
-    head = np.array(bd['head'])
-    tail = np.array(bd['tail'])
-    bone_data.append((bd['name'], head, tail))
+    name = bd['name']
+    head = np.array(bd['head']); tail = np.array(bd['tail'])
+    side = name[0]  # 'L' or 'R'
+    parts = name.split('_')
+    if not parts[-1].isdigit():
+        palm_segs[side].append((name, head, tail))   # wrist -> palm territory
+        continue
+    idx = int(parts[-1])
+    finger = parts[1]
+    if idx == 0:
+        # metacarpal -> palm territory (folds the boundary onto the knuckle line)
+        palm_segs[side].append((name, head, tail))
+    else:
+        key = (side, finger)
+        if key not in finger_segs:
+            finger_segs[key] = []
+        finger_segs[key].append((name, head, tail))
 
+# Create all vertex groups
 for bd in BONES:
     if bd['name'] not in mesh_obj.vertex_groups:
         mesh_obj.vertex_groups.new(name=bd['name'])
 
+n_palm = 0; n_finger = 0
 for vi, v in enumerate(verts):
+    side = 'L' if v[0] < 0.0 else 'R'   # gate by hand — no cross-hand bleed
+    wrist_name = side + '_wrist'
+
+    # Layer 1a: distance to palm territory (this side's wrist + metacarpals)
+    d_palm = float('inf')
+    for nm, h, t in palm_segs[side]:
+        d = seg_dist(v, h, t)
+        if d < d_palm:
+            d_palm = d
+
+    # Layer 1b: nearest finger phalanx (this side only)
+    d_finger = float('inf')
     best_bone = None
-    best_dist = float('inf')
-    for bname, head, tail in bone_data:
-        seg = tail - head
-        seg_len = np.linalg.norm(seg)
-        if seg_len < 1e-6:
-            dist = np.linalg.norm(v - head)
-        else:
-            t = np.clip(np.dot(v - head, seg) / (seg_len * seg_len), 0, 1)
-            proj = head + t * seg
-            dist = np.linalg.norm(v - proj)
-        if dist < best_dist:
-            best_dist = dist
-            best_bone = bname
-    if best_bone:
-        mesh_obj.vertex_groups[best_bone].add([vi], 1.0, 'REPLACE')
+    for (s, finger), segs in finger_segs.items():
+        if s != side:
+            continue
+        for nm, h, t in segs:
+            d = seg_dist(v, h, t)
+            if d < d_finger:
+                d_finger = d
+                best_bone = nm
 
-print("Done")
+    # Decision — palm wins ties (priority), fingers must be strictly closer
+    if best_bone is not None and d_finger < d_palm:
+        target = best_bone           # Layer 2: nearest phalanx
+        n_finger += 1
+    else:
+        target = wrist_name          # Layer 2: palm verts belong to the wrist
+        n_palm += 1
 
-bpy.ops.wm.save_as_mainfile(filepath=r'C:\\tmp\\slayerhands_rigged.blend')
-bpy.ops.export_scene.gltf(filepath=r'C:\\tmp\\slayerhands_rigged.glb', export_format='GLB', export_skins=True)
-print("Exported")
+    mesh_obj.vertex_groups[target].add([vi], 1.0, 'REPLACE')
+
+print("Done — palm-priority weights. palm verts:", n_palm, "finger verts:", n_finger)
+
+bpy.ops.wm.save_as_mainfile(filepath=r'C:\\Users\\kmessai\\Downloads\\slayerhands_rigged.blend')
+bpy.ops.export_scene.gltf(filepath=r'C:\\Users\\kmessai\\Downloads\\slayerhands_rigged.glb', export_format='GLB', export_skins=True)
+print("Exported to Downloads")
 '''
 
 with open(OUTPUT_PATH, 'w') as f:

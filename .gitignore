@@ -2,3 +2,13 @@ __pycache__/
 *.pyc
 *.npy
 .claude/
+
+# Hand rig — bulky sources & throwaway renders (regenerable)
+cgtrader_hand.blend
+hands.glb
+slayerhands_rigged.glb
+fp_idle.png
+hand_final.png
+hand_fist.png
+.playwright-mcp/
+ARCHIVES/
