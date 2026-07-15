@@ -75,3 +75,49 @@ At multi-neighbor voxels, `trace_branch` takes `neighbors[0]`. On thick limb jun
 
 ### 17. preserveDrawingBuffer for WebGL capture
 Playwright page.screenshot() does NOT capture WebGL canvas content. Canvas.toDataURL() works but ONLY with `preserveDrawingBuffer: true` on the WebGLRenderer. Without it, the draw buffer is cleared after presenting.
+
+## Hand Animation (marketplace rig)
+
+### 18. Armature object origin is at the FOREARM STUB, not the wrist
+On the cgtrader hand, the armature object origin sits at the lower forearm. Along
+local +Z (scale 3.118): wrist ≈ origin+3.1, fist knuckles ≈ +4.0, fingertip ≈ +6.0.
+Every staging position you guess is off by ~3 units until measured. **Probe at
+runtime; position the origin, not the wrist.** Cost the most time in the cast pass.
+
+### 19. First person = camera sees the BACKS of the hands → yaw-flipped branch
+All gather/hold/rest poses must live on the Z≈±172/180 branch (thumbs land
+outboard), the same branch the release uses. Authoring on the un-flipped branch
+gives palms-to-camera (wrong for FP) and fights the release orientation.
+
+### 20. You cannot teleport between hand orientations — roll through them
+A big Z change (gather 172 → release −180) done as a straight interp is an ugly
+180° flip. Insert a guide key at the midpoint that supinates/pronates the forearm
+(palm-up roll into a chamber; scoop-supinate into a cup). That's what a real wrist
+does; it's what makes the transition read as a wrist, not a glitch.
+
+### 21. Blender 5.x removed action.fcurves
+FCurves moved to `action.layers[*].strips[*].channelbags[*].fcurves`. Guard with
+`hasattr(action, 'fcurves')` and fall back to the layered path. (Also bit the
+Bezier-smoothing code on the spider — same fix.)
+
+### 22. Mirror hand needs a normal flip
+Left hand = right mesh with scale.x = −1. Negative determinant flips winding →
+inside-out render. Flip mesh normals via bmesh after staging (guard on
+`matrix_world.determinant() < 0`).
+
+### 23. Casts authored flat read as a sprint — retime for contrast
+Uniform keyframe spacing makes a cast feel like a keyframe-to-keyframe rush. Push
+spacing into the gather + HOLD, keep the pull→release span short. Retime (remap
+frames), don't re-pose. The held beat on the signature pose is where the VFX
+forms and the eye reads it — it's the breath of the whole motion.
+
+### 24. Marketplace rig > auto-rig for generic parts
+Our medial-axis pipeline is for creatures nobody modeled. For a HAND (or sword,
+barrel, generic humanoid), a bought pre-rigged model + ~10 min cleanup (strip
+junk, bare material, decimate, rename bones + matching vertex groups) beats
+fighting Meshy topology and auto-weights. Meshy for identity, marketplace for
+infrastructure.
+
+### 25. Rename bones AND their vertex groups together
+The armature modifier binds bone→vertex-group by NAME. Renaming a bone without
+renaming its vertex group breaks the bind. Rename both in lockstep.
