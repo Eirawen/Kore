@@ -121,3 +121,45 @@ infrastructure.
 ### 25. Rename bones AND their vertex groups together
 The armature modifier binds bone→vertex-group by NAME. Renaming a bone without
 renaming its vertex group breaks the bind. Rename both in lockstep.
+
+### 26. FP hands: thumbs must land INBOARD — verify chirality by render
+The yaw-flipped FP staging put both thumbs OUTBOARD, i.e. each side showed the
+WRONG hand (Khaled caught it by thumb position; the old codex note claiming
+"thumbs outboard is correct" was wrong). The fix is an in-place chirality flip
+applied uniformly at application time: keep every authored location, negate
+euler Y and Z, toggle the scale.x mirror (screen-right = mirrored mesh now).
+Pose-bone X-curls are mirror-invariant and pass through. Never trust chirality
+reasoning — probe thumb-tip world X vs hand center and LOOK at the render.
+
+### 27. Anisotropic mirror scale SHEARS rotated children
+A prop parented under an armature scaled (−S, S, S) inherits the mirror. Any
+child rotation that is not axis-aligned gets sheared (world = T·R·S_parent ·
+child). Keep prop rotations at 90° multiples (e.g. sword Ry(−90)), or bake the
+roll into the mesh data instead of the object transform.
+
+### 28. World-space key authoring beats euler guessing for props
+For the sword set, keys are authored as (fist position, forearm dir, blade dir)
+and solved to origin+euler at build time (tools/animate_sword.py: solve_key).
+Blade dir gets projected ⊥ forearm (rigid hammer grip: blade is ALWAYS ⊥ the
+metacarpals — a thrust can never go point-in-line on this rig). Unwrap eulers
+key-to-key (mod-360 + the (x+180, 180−y, z+180) equivalent triple) or
+interpolation does a 300° flip instead of a wrist roll.
+
+### 29. Seat props in the PROBED fist void, not where you think the palm is
+The curled-'grip' fist's enclosed void is at hand-local (0, −0.22, 1.37) —
+probed via posed bone positions (tools/probe_fist_void.py). Three blind
+guesses missed it; one probe hit it.
+
+### 30. Throwable release = keyed ChildOf influence + scale swap
+Real let-go: prop rides ChildOf(hand) with influence keyed 1→0 (CONSTANT) at
+the release frame, then flies on its own world-space LINEAR keys. Two traps:
+(a) key the scale across the switch — under the constraint the hand's 3.118
+multiplies in, in free flight it doesn't (prop shrinks 3× otherwise);
+(b) compute the world start analytically from the release key's loc/euler
+(T·R·S), no depsgraph needed.
+
+### 31. The forearm-stub egg — avoid stub-at-camera poses
+Any pose whose forearm points down-forward aims the CUT END of the forearm
+stub at the camera; it renders as a big smooth egg (thrust chambers, riposte
+poses, air-seal top hand). Keep forearm dirs near-horizontal or entering from
+a frame edge so the stub stays edge-on or cropped.

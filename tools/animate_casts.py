@@ -66,6 +66,7 @@ POSES = {
     'blade': {'f': [8, 10, 6],    'thumb': [25, 30, 15]},   # flat knife hand
     'open':  {'f': [4, 8, 4],     'thumb': [10, 15, 8]},    # presenting palm
     'fling': {'f': [-12, -8, -2], 'thumb': [-12, -5, 0]},   # splayed release
+    'knife_seal': {'f': [4, 6, 4], 'thumb': [55, 35, 15]},  # flat hand, thumb TUCKED
 }
 
 HAND_SCALE = 3.118
@@ -302,9 +303,9 @@ ANIMS['air_strike'] = {
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),    'idle'),
         (10, (2.30, -0.4, -1.0), (22, 9, 172),    'idle'),   # anticipation dip
         (20, (2.30, -0.5, -0.4), (-35, 5, 95),    'cup'),    # supinating scoop guide
-        (30, (2.25, -0.6, 0.15), (-76, 0, 28),    'blade'),  # sandwich bottom, palm up
-        (50, (2.25, -0.6, 0.20), (-76, 0, 28),    'blade'),  # hold (orb beat)
-        (56, (2.45, -0.8, -0.05), (-70, 0, 28),   'blade'),  # slight pull anticipation
+        (30, (0.45, -0.6, 0.10), (-76, 0, 12),    'knife_seal'),  # sandwich bottom, palm up, centered
+        (50, (0.45, -0.6, 0.15), (-76, 0, 12),    'knife_seal'),  # hold (orb beat)
+        (56, (0.70, -0.8, -0.10), (-70, 0, 12),   'knife_seal'),  # slight pull anticipation
         (59, (1.60, 1.2, 0.2),   (-45, 0, -110),  'open'),   # pronating mid-swing
         (64, (1.05, 4.4, -0.5),  (-32, 0, -180),  'fling'),  # release downrange
         (70, (1.15, 3.9, -0.8),  (-27, 0, -180),  'fling'),  # recoil
@@ -313,10 +314,10 @@ ANIMS['air_strike'] = {
     'left': [
         (1,  (-2.05, 0.0, -0.7), (14, -9, -172),  'idle'),
         (10, (-2.30, -0.4, -1.0), (22, -9, -172), 'idle'),
-        (20, (-2.40, -0.5, 0.8), (45, -4, -192),  'blade'),  # pitching forward on the way up
-        (30, (-2.30, -0.6, 2.55), (70, 0, -212),  'blade'),  # sandwich top, palm down
-        (50, (-2.30, -0.6, 2.60), (70, 0, -212),  'blade'),  # hold
-        (58, (-3.00, -0.6, 2.7), (58, 0, -225),   'blade'),  # peels back-outboard
+        (20, (-1.80, -0.5, 1.0), (45, -4, -188),  'knife_seal'),  # pitching forward on the way up
+        (30, (-0.55, -0.6, 2.80), (78, 0, -184),  'knife_seal'),  # sandwich top, palm down, gap above
+        (50, (-0.55, -0.6, 2.85), (78, 0, -184),  'knife_seal'),  # hold
+        (58, (-2.20, -0.6, 3.0), (58, 0, -215),   'knife_seal'),  # peels back-outboard
         (66, (-3.60, -0.3, 2.5), (40, 0, -228),   'open'),   # clear of the throw
         (78, (-3.70, -0.1, 2.3), (35, 0, -224),   'open'),   # settle low-outboard
     ],
@@ -378,8 +379,10 @@ ANIMS['fire_strike'] = {
     ],
     'left': [
         (1,  (-2.05, 0.0, -0.7),  (14, -9, -172), 'idle'),
-        (27, (-2.10, -0.05, -0.75), (15, -9, -171), 'idle'), # breathing sway
-        (54, (-2.05, 0.0, -0.7),  (14, -9, -172), 'idle'),
+        (11, (-2.45, 0.3, -1.9),  (28, -9, -172), 'cup'),   # sinks low, loose support curl
+        (16, (-2.55, 0.4, -2.2),  (30, -9, -172), 'cup'),   # mostly out of frame
+        (40, (-2.55, 0.4, -2.2),  (30, -9, -172), 'cup'),   # stays low through the fling
+        (54, (-2.45, 0.3, -1.9),  (28, -9, -172), 'cup'),
     ],
     'phases': [(1, 'rest'), (7, 'present'), (17, 'flicker beat'),
                (35, 'anticipate'), (41, 'fling'), (48, 'follow-through')],
