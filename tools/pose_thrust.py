@@ -35,8 +35,11 @@ LEFT_ARM,  LEFT_MESH  = 'Armature.003', 'Sphere.002'
 KEEP = {RIGHT_ARM, LEFT_ARM, RIGHT_MESH, LEFT_MESH}
 SWORD_GLB = r'C:\Users\kmessai\Downloads\Silverlight.glb'
 SWORD_SCALE = 2.8
-SWORD_LOC = (-0.73 * SWORD_SCALE, -0.22, 1.37)
-SWORD_ROT = (0, -90, 0)
+# IN-LINE seat: blade runs ALONG the forearm (armature +Z) at a neutral wrist,
+# not perpendicular. So neutral wrist + arm-up = blade up (ready); neutral wrist
+# + arm pitched downrange = blade forward (thrust). The wrist barely moves.
+SWORD_LOC = (0.0, -0.15, 0.55)
+SWORD_ROT = (0, 0, 0)
 
 # Downrange aim for the thrust: into the FP screen (+Y), a hair up so the point
 # doesn't drive into the floor.
@@ -48,10 +51,14 @@ AIM_WORLD = Vector((0, 1, 0.12)).normalized()
 # climbing. TILT_BACK is negative = tilts toward camera, so POSITIVE pitch
 # tilts the forearm forward/downrange. Wrist (thrust_quat) sets final aim on
 # top of the pitched arm; the reach is mostly arm, the wrist just finishes it.
+# With the in-line seat the thrust is mostly ARM pitch (up -> downrange) at a
+# near-neutral wrist. frac drives a SMALL wrist flexion only (to level the point
+# at full extension). (label, object-loc, wrist-flex frac, arm-pitch delta deg)
+WRIST_FLEX_DEG = 20.0   # max wrist flex at strike — small, within human ROM
 THRUST_KEYS = [
-    ('1_chamber', (HAND_X + 0.15, -1.05, -0.35), 0.0,  -10.0),
-    ('2_drive',   (HAND_X - 0.20,  0.35, -0.15), 0.55,  14.0),
-    ('3_strike',  (HAND_X - 0.50,  1.65, -0.25), 1.0,   32.0),
+    ('1_ready',  (HAND_X,        -0.20,  0.10), 0.0, 0.0),   # arm up, blade up
+    ('2_drive',  (HAND_X - 0.25,  0.55, -0.10), 0.5, 28.0),  # arm pitching down
+    ('3_strike', (HAND_X - 0.50,  1.55, -0.22), 1.0, 52.0),  # arm downrange
 ]
 
 
@@ -180,6 +187,13 @@ def thrust_quat(arm, frac):
     return Quaternion().slerp(Rm.to_quaternion(), frac)
 
 
+def wrist_flex(frac):
+    """Small pure FLEXION about the wrist's local flex axis (1,0,0) — the only
+    wrist motion the thrust needs once the blade is seated in-line. No axial
+    twist (that would be forearm pronation, not the wrist)."""
+    return Quaternion((1, 0, 0), math.radians(WRIST_FLEX_DEG * frac))
+
+
 def set_hand(arm, q):
     pb = arm.pose.bones['hand']
     pb.rotation_mode = 'QUATERNION'
@@ -241,8 +255,8 @@ def main():
         right.rotation_euler = Euler((math.radians(TILT_BACK + pitch),
                                       math.radians(TIP_INWARD),
                                       math.radians(-ROLL_INWARD)), 'XYZ')
-        bpy.context.view_layer.update()   # refresh matrix_world BEFORE aiming
-        set_hand(right, thrust_quat(right, frac))
+        bpy.context.view_layer.update()
+        set_hand(right, wrist_flex(frac))   # near-neutral wrist, small flex only
         bpy.context.view_layer.update()
         render(OUT_DIR + '\\thrust_%s_fp.png' % label, fp)
         render(OUT_DIR + '\\thrust_%s_side.png' % label, side)
