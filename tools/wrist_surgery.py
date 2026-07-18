@@ -24,7 +24,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 WRIST_T = 0.78          # split point along root head->tail (probed crease)
-BAND    = 0.10          # blend band full width, local units (~1.5cm hand-scale)
+BAND    = 0.16          # blend band full width, local units (~1.5cm hand-scale)
 
 PAIRS = [('Armature.001', 'Sphere.001'), ('Armature.003', 'Sphere.002')]
 FINGER_ROOTS = ['Bone.001', 'Bone.004', 'Bone.005', 'Bone.006', 'Bone.007']
