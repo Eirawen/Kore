@@ -120,29 +120,45 @@ def apply_matte(objs):
         obj.data.materials.append(mat)
 
 
+# CHIRALITY FIX (2026-07-17, verified by render + probe): the authored key
+# data below was written for un-mirrored-right / mirrored-left, which put each
+# thumb OUTBOARD — wrong chirality per side (Khaled caught it). The correct
+# first-person view of the backs of your own hands has each thumb INBOARD.
+# The fix is an in-place chirality flip applied uniformly at APPLICATION time:
+# keep every location, negate the euler Y and Z, toggle the scale.x mirror
+# (screen-right = mirrored mesh, screen-left = un-mirrored). Pose-bone X-curls
+# are mirror-invariant and pass through untouched.
+def flip_chirality(rot_deg):
+    return (rot_deg[0], -rot_deg[1], -rot_deg[2])
+
+
 def stage_hands():
     right, left = bpy.data.objects[RIGHT_ARM], bpy.data.objects[LEFT_ARM]
     ensure_parented(bpy.data.objects[RIGHT_MESH], right)
     ensure_parented(bpy.data.objects[LEFT_MESH], left)
     for obj in (right, left):
         obj.rotation_mode = 'XYZ'
-    right.location, right.scale = R_REST_LOC, (HAND_SCALE,) * 3
-    right.rotation_euler = Euler([math.radians(a) for a in R_REST_ROT], 'XYZ')
+    right.location = R_REST_LOC
+    right.scale = (-HAND_SCALE, HAND_SCALE, HAND_SCALE)
+    right.rotation_euler = Euler(
+        [math.radians(a) for a in flip_chirality(R_REST_ROT)], 'XYZ')
     left.location = L_REST_LOC
-    left.rotation_euler = Euler([math.radians(a) for a in L_REST_ROT], 'XYZ')
-    left.scale = (-HAND_SCALE, HAND_SCALE, HAND_SCALE)
+    left.scale = (HAND_SCALE,) * 3
+    left.rotation_euler = Euler(
+        [math.radians(a) for a in flip_chirality(L_REST_ROT)], 'XYZ')
 
-    lm = bpy.data.objects[LEFT_MESH]
     bpy.context.view_layer.update()
-    if lm.matrix_world.determinant() < 0:
-        import bmesh
-        bm = bmesh.new()
-        bm.from_mesh(lm.data)
-        for f in bm.faces:
-            f.normal_flip()
-        bm.to_mesh(lm.data)
-        bm.free()
-        lm.data.update()
+    for mesh_name in (RIGHT_MESH, LEFT_MESH):
+        m = bpy.data.objects[mesh_name]
+        if m.matrix_world.determinant() < 0:
+            import bmesh
+            bm = bmesh.new()
+            bm.from_mesh(m.data)
+            for f in bm.faces:
+                f.normal_flip()
+            bm.to_mesh(m.data)
+            bm.free()
+            m.data.update()
 
 
 def setup_camera_lights_world():
@@ -195,7 +211,8 @@ def clear_pose(arm):
 
 def key_obj(arm, frame, loc, rot_deg):
     arm.location = loc
-    arm.rotation_euler = Euler([math.radians(a) for a in rot_deg], 'XYZ')
+    arm.rotation_euler = Euler(
+        [math.radians(a) for a in flip_chirality(rot_deg)], 'XYZ')
     arm.keyframe_insert('location', frame=frame)
     arm.keyframe_insert('rotation_euler', frame=frame)
 

@@ -122,32 +122,41 @@ def stage_hands():
     ti = math.radians(TIP_INWARD)
     ri = math.radians(ROLL_INWARD)
 
-    # In hand-local space: fingers +Z, palm -Y, thumb -X, forearm -Z.
+    # In hand-local space: fingers +Z, palm -Y, forearm -Z.
     # With identity rotation the palm faces the camera (camera sits at -Y),
     # fingers point world-up, forearm drops straight down out of frame.
+    #
+    # CHIRALITY (verified by render 2026-07-17): the un-mirrored mesh staged
+    # this way shows its thumb OUTBOARD, i.e. it reads as the WRONG hand for
+    # its side (Khaled caught this by thumb position). The fix is an in-place
+    # chirality flip on BOTH slots: keep the location, negate the euler Y and
+    # Z components, toggle the scale.x mirror. Screen-right is therefore the
+    # MIRRORED mesh, screen-left the un-mirrored one; each thumb lands
+    # INBOARD (toward screen center), which is what a true first-person view
+    # of the backs of your own hands looks like.
     right.location = (HAND_X, HAND_Y, HAND_Z)
-    right.rotation_euler = Euler((tb, -ti, ri), 'XYZ')
-    right.scale = (HAND_SCALE, HAND_SCALE, HAND_SCALE)
+    right.rotation_euler = Euler((tb, ti, -ri), 'XYZ')
+    right.scale = (-HAND_SCALE, HAND_SCALE, HAND_SCALE)
 
-    # Left hand: same right-hand geometry mirrored across its local YZ plane
-    # (scale.x = -1) so the thumb lands inboard like a true left hand.
     left.location = (-HAND_X, HAND_Y, HAND_Z)
-    left.rotation_euler = Euler((tb, ti, -ri), 'XYZ')
-    left.scale = (-HAND_SCALE, HAND_SCALE, HAND_SCALE)
+    left.rotation_euler = Euler((tb, -ti, ri), 'XYZ')
+    left.scale = (HAND_SCALE, HAND_SCALE, HAND_SCALE)
 
     # Negative determinant flips face winding; flip the mesh normals so the
-    # mirrored hand does not render inside-out.
-    lm = bpy.data.objects[LEFT_MESH]
+    # mirrored hand does not render inside-out. Applied to whichever mesh is
+    # mirrored (guard on the determinant, not the name).
     bpy.context.view_layer.update()
-    if lm.matrix_world.determinant() < 0:
-        import bmesh
-        bm = bmesh.new()
-        bm.from_mesh(lm.data)
-        for f in bm.faces:
-            f.normal_flip()
-        bm.to_mesh(lm.data)
-        bm.free()
-        lm.data.update()
+    for mesh_name in (RIGHT_MESH, LEFT_MESH):
+        m = bpy.data.objects[mesh_name]
+        if m.matrix_world.determinant() < 0:
+            import bmesh
+            bm = bmesh.new()
+            bm.from_mesh(m.data)
+            for f in bm.faces:
+                f.normal_flip()
+            bm.to_mesh(m.data)
+            bm.free()
+            m.data.update()
 
 
 def setup_camera_lights_world():
