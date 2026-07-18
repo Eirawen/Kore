@@ -246,6 +246,16 @@ def render_knife_animation(name, knife, con, samples=12):
                    'samples': manifest}, fh, indent=1)
 
 
+def render_knife_full(name, knife, con):
+    """Every frame -> <name>_%04d.png (ffmpeg -> mp4). Release constraint
+    switch and flight keys ride along since build authors them."""
+    build_knife_animation(name, knife, con)
+    scene = bpy.context.scene
+    scene.render.filepath = OUT_DIR + '\\%s_' % name
+    bpy.ops.render.render(animation=True)
+    print('rendered full sequence for', name)
+
+
 def phase_of_knife(name, frame):
     label = ''
     for start, lab in KNIFE_ANIMS[name]['phases']:
@@ -257,6 +267,7 @@ def phase_of_knife(name, frame):
 def knife_main():
     argv = sys.argv
     args = argv[argv.index('--') + 1:] if '--' in argv else []
+    full = '--full' in args
     args = [a for a in args if not a.startswith('--')]
     names = list(KNIFE_ANIMS) if (not args or args == ['all']) else args
 
@@ -266,7 +277,10 @@ def knife_main():
     setup_camera_lights_world()
     for name in names:
         knife, con = attach_knife(KNIFE_ANIMS[name]['seat'])
-        render_knife_animation(name, knife, con)
+        if full:
+            render_knife_full(name, knife, con)
+        else:
+            render_knife_animation(name, knife, con)
         bpy.data.objects.remove(knife, do_unlink=True)
 
 

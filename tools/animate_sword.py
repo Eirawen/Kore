@@ -520,6 +520,15 @@ def render_animation(name, samples=12):
                    'samples': manifest}, fh, indent=1)
 
 
+def render_full(name):
+    """Every frame at authored fps to <name>_%04d.png (ffmpeg -> mp4)."""
+    build_animation(name)
+    scene = bpy.context.scene
+    scene.render.filepath = OUT_DIR + '\\%s_' % name
+    bpy.ops.render.render(animation=True)
+    print('rendered full sequence for', name)
+
+
 def render_grip_still():
     """Static grip verification: ready stance, wide + close."""
     right = bpy.data.objects[RIGHT_ARM]
@@ -551,6 +560,7 @@ def main():
     argv = sys.argv
     args = argv[argv.index('--') + 1:] if '--' in argv else []
     grip = '--grip' in args
+    full = '--full' in args
     args = [a for a in args if not a.startswith('--')]
     names = list(ANIMS) if (not args or args == ['all']) else args
 
@@ -563,7 +573,10 @@ def main():
         render_grip_still()
         return
     for name in names:
-        render_animation(name)
+        if full:
+            render_full(name)
+        else:
+            render_animation(name)
 
 
 main()
