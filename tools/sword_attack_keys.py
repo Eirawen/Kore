@@ -34,10 +34,19 @@ exec(_code[:_code.rfind('def main')])
 # (label, fist world pos, blade world dir, forearm-side hint,
 #  flex deg, dev deg, pronation delta deg)
 ATTACKS = {
+    # AMENDMENT 2 (2026-07-21, Khaled): the strike must arrive PRONATED —
+    # thumb inboard/LEFT from the player's view (natural right-hand thrust),
+    # not thumb-right. PROBED (probe_strike_pronation.py): the forearm-roll
+    # channel is a WORLD-POSE NO-OP under this solver — blade + hint pin the
+    # assembly, and the forearm axis is invariant under its own roll — so the
+    # pronation is authored as the ASSEMBLY SPIN: the forearm-side hint
+    # rotated about the blade axis (drive -60 deg, strike -120 deg; the
+    # wrist stays at the approved legal flex/dev). Elbow rides up-and-out
+    # right — the classic high-line pronated stab.
     'light': [
         ('1_ready',   (2.10, 0.35, 3.30), (0.06, -0.20, 0.98), (0.15, 0.30, 0.94), -14, 0, 0),
-        ('2_drive',   (1.90, 1.70, 3.40), (0.02, 0.62, 0.78),  (-0.25, 0.50, 0.83), -5, 0, 0),
-        ('3_strike',  (1.65, 2.70, 3.15), (0.18, 0.95, -0.25), (-0.35, 0.60, 0.70), 0, -10, 10),
+        ('2_drive',   (1.90, 1.70, 3.40), (0.02, 0.62, 0.78),  (-0.224, 0.731, 0.646), -5, 0, 5),
+        ('3_strike',  (1.65, 2.70, 3.15), (0.18, 0.95, -0.25), (-0.442, 0.208, -0.857), 0, -10, 10),
         ('4_recover', (2.00, 1.10, 3.30), (0.05, 0.42, 0.90),  (0.05, 0.65, 0.75),  -9, 0, 0),
     ],
     'heavy_lr': [
