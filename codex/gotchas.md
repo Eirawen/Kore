@@ -164,6 +164,26 @@ stub at the camera; it renders as a big smooth egg (thrust chambers, riposte
 poses, air-seal top hand). Keep forearm dirs near-horizontal or entering from
 a frame edge so the stub stays edge-on or cropped.
 
+### 32. Forearm roll is a WORLD-POSE NO-OP under the world-space key solver
+When a key is authored as (blade dir, forearm-side hint) and solved to an
+object rotation, the forearm-roll channel cannot change the world pose: the
+solver pins blade + hint, and the forearm AXIS is invariant under rotation
+about itself, so the assembly spin about the blade is fully determined by
+(blade, hint). Swept roll_d -125..+44 at the light strike — thumb dir
+identical every time. To pronate/supinate the FIST in world space, rotate
+the HINT about the blade axis (spins fist + elbow together; wrist flex/dev
+shifts thumb-vs-elbow). roll_d only affects internal wrist state + a small
+fist-void drift.
+
+### 33. Two sparse object-rotation keys swing an offset fist on a huge arc
+The fist sits ~3+ units from the armature origin (gotcha 18). Interpolating
+a big object rotation between just two keys sweeps that offset point on a
+wild detour — the heavy_rl coil sent the fist to y=-2.3, BEHIND the camera
+plane, off a 2-key ready->windup pair whose endpoints both had y≈+0.5.
+Probe per-frame fist positions numerically (animate_sword_attacks --probe)
+and pin the path with in-between keys; never trust two keys across a large
+rotation.
+
 ### 14b. hide_render sabotage (the bare-handle night)
 A mesh can be visible in the artist's viewport but set `hide_render: True`
 (outliner CAMERA icon, distinct from the eye). Headless renders honor
