@@ -163,3 +163,12 @@ Any pose whose forearm points down-forward aims the CUT END of the forearm
 stub at the camera; it renders as a big smooth egg (thrust chambers, riposte
 poses, air-seal top hand). Keep forearm dirs near-horizontal or entering from
 a frame edge so the stub stays edge-on or cropped.
+
+### 14b. hide_render sabotage (the bare-handle night)
+A mesh can be visible in the artist's viewport but set `hide_render: True`
+(outliner CAMERA icon, distinct from the eye). Headless renders honor
+hide_render, not hide_viewport — so the subject silently vanishes from every
+render while looking fine to the human. Cost a full night of "why is the
+handle bare" camera-blame. **Probe `obj.hide_render` FIRST when a subject is
+mysteriously absent from renders.** Also: aim cameras at EVALUATED (posed)
+geometry via depsgraph — `bound_box` is rest-pose and lies about posed hands.
