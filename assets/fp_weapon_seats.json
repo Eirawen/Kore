@@ -1,0 +1,99 @@
+{
+ "convention": {
+  "socket": "the `hand` bone joint node of each armature (right = Armature.001 subtree, left = Armature.003 subtree; glTF may rename dots to underscores)",
+  "usage": "parent weapon to the RIGHT `hand` joint node, apply this matrix as the node local transform (rows are row-major 4x4; includes scale + the mirrored-parent handedness)",
+  "chirality_note": "the RIGHT hand joint world matrix has NEGATIVE determinant (mirrored armature); any prop parented there renders mirror-flipped. The seat matrices themselves are proper (det>0) and were tuned in this frame, so Silverlight/knife look correct; a new CHIRAL prop needs a mirror-corrected mesh or seat (see brief footnote)"
+ },
+ "silverlight_sword": {
+  "source_glb": "Silverlight.glb (raw node, no import conversion)",
+  "parent": "right hand joint",
+  "matrix": [
+   [
+    1.050143,
+    -0.5142,
+    -2.54417,
+    -1.831524
+   ],
+   [
+    2.580151,
+    -0.092313,
+    1.083652,
+    1.182646
+   ],
+   [
+    -0.282883,
+    -2.750833,
+    0.439204,
+    0.619333
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "knife_pinch": {
+  "source_glb": "assets/test_knife.glb (+Z blade, 26 cm)",
+  "parent": "right hand joint",
+  "used_by": "knife_throw_blade_first (also the embedded knife seat)",
+  "matrix": [
+   [
+    4.9,
+    1e-06,
+    -0.0,
+    -0.05
+   ],
+   [
+    0.0,
+    0.218686,
+    4.895118,
+    0.377793
+   ],
+   [
+    1e-06,
+    -4.895118,
+    0.218686,
+    0.382334
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "knife_hammer": {
+  "source_glb": "assets/test_knife.glb (+Z blade, 26 cm)",
+  "parent": "right hand joint",
+  "used_by": "idle_knife / knife_throw_handle_first held state",
+  "matrix": [
+   [
+    -0.0,
+    1e-06,
+    -4.9,
+    -0.34
+   ],
+   [
+    4.895118,
+    0.218686,
+    -0.0,
+    0.572513
+   ],
+   [
+    0.218686,
+    -4.895118,
+    -1e-06,
+    0.280924
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ }
+}

@@ -1,0 +1,103 @@
+{
+ "fps": 60,
+ "time_convention": "t = (frame-1)/60 s from clip start",
+ "clips": {
+  "sword_light": {
+   "duration": 0.8,
+   "windup": 0.1,
+   "impact_window": [
+    0.4,
+    0.6
+   ],
+   "recover": 0.6
+  },
+  "sword_heavy_lr": {
+   "duration": 1.0667,
+   "windup": 0.1,
+   "impact_window": [
+    0.45,
+    0.7833
+   ],
+   "recover": 0.7833
+  },
+  "sword_heavy_rl": {
+   "duration": 1.0667,
+   "windup": 0.1,
+   "impact_window": [
+    0.45,
+    0.7833
+   ],
+   "recover": 0.7833
+  },
+  "idle_sword": {
+   "duration": 2.0167,
+   "loop": true
+  },
+  "idle_knife": {
+   "duration": 2.0167,
+   "loop": true
+  },
+  "knife_throw_blade_first": {
+   "duration": 1.4667,
+   "release": 0.8667
+  },
+  "knife_throw_handle_first": {
+   "duration": 1.6333,
+   "release": 0.9667
+  },
+  "cast_air_strike": {
+   "duration": 2.3333,
+   "gather_start": 0.1,
+   "orb_spawn": 0.8667,
+   "launch": 1.8667,
+   "recover": 2.0167,
+   "orb_anchor": {
+    "type": "midpoint_hand_joints",
+    "note": "midpoint of right+left `hand` joint world positions (the orb home is the gap between the sandwich palms)"
+   }
+  },
+  "cast_water_strike": {
+   "duration": 2.3,
+   "gather_start": 0.1167,
+   "orb_spawn": 0.8667,
+   "launch": 1.8333,
+   "recover": 1.9833,
+   "orb_anchor": {
+    "type": "midpoint_hand_joints",
+    "note": "midpoint of right+left `hand` joint world positions (the clasp gap)"
+   }
+  },
+  "cast_fire_strike": {
+   "duration": 1.9333,
+   "gather_start": 0.2833,
+   "orb_spawn": 0.7167,
+   "launch": 1.6167,
+   "recover": 1.7667,
+   "orb_anchor": {
+    "type": "right_hand_joint_offset",
+    "offset_joint_local": [
+     -0.0,
+     0.539,
+     0.5727
+    ],
+    "note": "offset in the RIGHT hand joint LOCAL frame (joint units \u2014 world scale bakes in via the joint matrix): ~6 cm above the cupped palm at the flicker beat; parent emitter to the joint and apply this local offset"
+   }
+  },
+  "cast_earth_strike": {
+   "duration": 2.0667,
+   "gather_start": 0.1333,
+   "orb_spawn": 1.1,
+   "launch": 1.5,
+   "recover": 1.6667,
+   "orb_anchor": {
+    "type": "right_hand_joint_offset",
+    "offset_joint_local": [
+     0.345,
+     0.6028,
+     0.6269
+    ],
+    "note": "offset in the RIGHT hand joint LOCAL frame: ~10 cm ahead of the chambered fist; parent emitter to the joint and apply this local offset"
+   }
+  }
+ }
+}
