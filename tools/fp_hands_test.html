@@ -52,7 +52,9 @@ scene.add(grid);
 let mixer = null, activeAction = null, gltfRoot = null;
 window.__info = { status: 'loading' };
 
-new GLTFLoader().load('/fp_hands_test.glb', (gltf) => {
+const GLB_PATH = new URLSearchParams(location.search).get('glb') || '/fp_hands_test.glb';
+document.getElementById('info').textContent = 'loading ' + GLB_PATH + ' ...';
+new GLTFLoader().load(GLB_PATH, (gltf) => {
     gltfRoot = gltf.scene;
     window.__sceneRoot = gltfRoot;   // node-level probes (knife release proof)
     scene.add(gltfRoot);
