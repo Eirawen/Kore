@@ -60,6 +60,7 @@ IDLE_FRAMES = 121            # 2.0 s at 60 fps, first frame == last frame
 ROOT_SCALE = 0.19 / 2.9      # hand units -> meters (glb-export-notes #5)
 FIST_VOID = Vector((0.0, -0.22, 1.37))   # armature-local palm void (gotcha #29)
 
+FLIGHT_OVERSHOOT = 8         # knife flight keys extend past the hand clip
 CLIP_FRAMES = {}             # clip -> total frames (for events + sanity)
 STASHES = []                 # (object_name, clip_name, action)
 SWORD_SEAT_REL = None        # 4x4, right-hand JOINT-local (filled in phase A)
@@ -131,7 +132,28 @@ def stash(obj, clip):
     act.name = '%s__%s' % (clip, obj.name)
     act.use_fake_user = True
     STASHES.append((obj.name, clip, act))
+    if getattr(obj.animation_data, 'action_slot', None) is not None:
+        obj.animation_data.action_slot = None
     obj.animation_data.action = None
+    return act
+
+
+def fresh_action(obj, name):
+    """EXPLICIT new action. Blender 5's slotted-action keying can silently
+    re-use/extend a previously-stashed action when keyframe_insert runs with
+    animation_data.action == None — that bloated the left hand's sword_light
+    action to the idle's 121-frame range (exported strip range follows the
+    action range: 2.017 s sword_light bug). Never key implicitly."""
+    ad = obj.animation_data or obj.animation_data_create()
+    act = bpy.data.actions.new(name)
+    ad.action = act
+    slots = getattr(act, 'slots', None)
+    if slots is not None:
+        try:
+            slot = slots.new(id_type='OBJECT', name=obj.name)
+            ad.action_slot = slot
+        except Exception as exc:
+            print('WARN fresh_action slot:', exc)   # keyframe_insert will slot
     return act
 
 
@@ -189,7 +211,8 @@ def phase_sword(render_idles):
     left_hand_q = left.pose.bones['hand'].rotation_quaternion.copy()
     left_fore_q = left.pose.bones['forearm'].rotation_quaternion.copy()
 
-    def key_left_static(frames):
+    def key_left_static(clip, frames):
+        fresh_action(left, 'tmp_%s_left' % clip)
         key_object(left, frames[0], left_loc, left_rot)
         for f in frames[1:]:
             key_object(left, f, left_loc, left_rot)
@@ -203,12 +226,14 @@ def phase_sword(render_idles):
         total = ns['build_animation'](right, sword, base_hand_q, base_roll, atk)
         CLIP_FRAMES[clip] = total
         key_fingers(right, snap_r, (1, total))       # static grip, self-contained
-        key_left_static((1, total))
+        key_left_static(clip, (1, total))
         stash(right, clip)
         stash(left, clip)
         print('built', clip, total, 'frames')
 
     # — idle_sword: breath sway on the ready pose, loopable —
+    fresh_action(right, 'tmp_idle_sword_right')
+    fresh_action(left, 'tmp_idle_sword_left')
     ns['solve_key'](right, sword, base_hand_q, base_roll,
                     ns['ATTACKS']['light'][0])       # 1_ready
     loc0 = Vector(right.location)
@@ -289,6 +314,8 @@ def phase_knife(render_idles):
     # — idle_knife: hammer-grip ready (knife attaches via seat at runtime) —
     ns['clear_anim'](right)
     ns['clear_anim'](left)
+    fresh_action(right, 'tmp_idle_knife_right')
+    fresh_action(left, 'tmp_idle_knife_left')
     ns['POSES']['grip_idle'] = {'f': [78, 88, 60], 'thumb': [42, 52, 29]}
     loc0, rot0 = ns['solve_key'](*ns['K_READY'])
     loc0 = Vector(loc0)
@@ -324,7 +351,9 @@ def phase_knife(render_idles):
     for name in ('knife_throw_blade_first', 'knife_throw_handle_first'):
         ns['build_knife_animation'](name, knife, con)
         total = ns['KNIFE_ANIMS'][name]['frames']
-        CLIP_FRAMES[name] = total
+        # the knife's flight keys run FLIGHT_OVERSHOOT past the hand keys —
+        # the GLB clip is that long; hands hold their settle pose at the tail
+        CLIP_FRAMES[name] = total + FLIGHT_OVERSHOOT
         key_wrist(right, (1, total))
         key_wrist(left, (1, total))
         stash(right, name)
@@ -358,24 +387,116 @@ def phase_casts():
 
 # ═══════════════ PHASE D-G: hidden knife, modes, NLA, root ═══════════════
 
-def build_hidden_knife_action(knife, con):
-    """One tiny action reused on every non-throw track: knife parked out of
-    sight, ChildOf influence 0 — so ANY clip playback resets the knife."""
-    knife.animation_data_clear()
+def _assign_slot(strip, act):
+    slots = getattr(act, 'slots', None)
+    if slots and hasattr(strip, 'action_slot'):
+        try:
+            strip.action_slot = slots[0]
+        except Exception as exc:
+            print('WARN action_slot assign failed:', exc)
+
+
+def _linear_fcurves(obj):
+    action = obj.animation_data.action
+    curve_sets = ([action.fcurves] if hasattr(action, 'fcurves')
+                  else [cb.fcurves for L in action.layers for s in L.strips
+                        for cb in s.channelbags])
+    for fcurves in curve_sets:
+        for fc in fcurves:
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+
+
+def prebake_knife_tracks(root, right, left, knife, knife_ns):
+    """THE fix for the multi-clip constraint landmine: the glTF exporter
+    bakes each object's NLA track WITHOUT synchronizing the other objects'
+    NLA state, so the knife's ChildOf-driven motion bakes against the wrong
+    armature animation once 11 tracks exist (the spike passed only because
+    knife clips were exported alone). Pre-bake the knife's root-local motion
+    here with the correct per-clip solo state, replace the strip actions
+    with plain keyed TRS, and REMOVE the constraint — the exporter then has
+    nothing left to get wrong."""
+    scene = bpy.context.scene
+    root_inv = root.matrix_world.inverted()
+    baked = {}
+    for clip in ('knife_throw_blade_first', 'knife_throw_handle_first'):
+        n = knife_ns['KNIFE_ANIMS'][clip]['frames'] + FLIGHT_OVERSHOOT
+        for obj in (right, left, knife):
+            solo_track(obj, clip)
+        samples = []
+        for f in range(1, n + 1):
+            scene.frame_set(f)
+            deps = bpy.context.evaluated_depsgraph_get()
+            samples.append(root_inv @ knife.evaluated_get(deps).matrix_world)
+        for obj in (right, left, knife):
+            solo_track(obj, clip, False)
+        baked[clip] = samples
+    for c in list(knife.constraints):
+        knife.constraints.remove(c)
+    knife.rotation_mode = 'QUATERNION'
+    ad = knife.animation_data
+    for clip, samples in baked.items():
+        fresh_action(knife, '%s__ThrowingKnife_baked' % clip)
+        prev_q = None
+        for f, M in enumerate(samples, start=1):
+            M3 = M.to_3x3()
+            det = M3.determinant()
+            s = abs(det) ** (1.0 / 3.0)
+            sign = 1.0 if det >= 0 else -1.0
+            Mn = Matrix([[v / (sign * s) for v in row] for row in M3])
+            q = Mn.to_quaternion()
+            if prev_q is not None and prev_q.dot(q) < 0:
+                q.negate()
+            prev_q = q
+            knife.location = M.to_translation()
+            knife.rotation_quaternion = q
+            knife.scale = (sign * s,) * 3
+            knife.keyframe_insert('location', frame=f)
+            knife.keyframe_insert('rotation_quaternion', frame=f)
+            knife.keyframe_insert('scale', frame=f)
+        _linear_fcurves(knife)
+        act = ad.action
+        act.use_fake_user = True
+        if getattr(ad, 'action_slot', None) is not None:
+            ad.action_slot = None
+        ad.action = None
+        for track in ad.nla_tracks:
+            if track.name == clip:
+                for strip in list(track.strips):
+                    track.strips.remove(strip)
+                strip = track.strips.new(clip, 1, act)
+                strip.name = clip
+                _assign_slot(strip, act)
+                _fit_strip(strip, CLIP_FRAMES[clip])
+        print('prebaked knife track %s (%d frames, constraint removed)'
+              % (clip, len(samples)))
+
+
+def add_hidden_knife_tracks(knife, clips):
+    """Knife parked out of sight in every non-throw clip, so ANY clip
+    playback resets the knife node (post-throw crossfades included)."""
+    ad = knife.animation_data
+    fresh_action(knife, 'knife_hidden')
     knife.location = (0.0, 0.0, -30.0)
-    knife.rotation_euler = (0.0, 0.0, 0.0)
+    knife.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
     knife.scale = (0.001,) * 3
-    con.influence = 0.0
     for f in (1, 2):
         knife.keyframe_insert('location', frame=f)
-        knife.keyframe_insert('rotation_euler', frame=f)
+        knife.keyframe_insert('rotation_quaternion', frame=f)
         knife.keyframe_insert('scale', frame=f)
-        con.keyframe_insert('influence', frame=f)
-    act = knife.animation_data.action
-    act.name = 'knife_hidden'
+    act = ad.action
     act.use_fake_user = True
-    knife.animation_data.action = None
-    return act
+    if getattr(ad, 'action_slot', None) is not None:
+        ad.action_slot = None
+    ad.action = None
+    for clip in clips:
+        track = ad.nla_tracks.new()
+        track.name = clip
+        strip = track.strips.new(clip, 1, act)
+        strip.name = clip
+        _assign_slot(strip, act)
+        _fit_strip(strip, CLIP_FRAMES[clip])
+    print('hidden knife tracks:', len(clips))
 
 
 def set_rotation_modes(arms):
@@ -385,7 +506,22 @@ def set_rotation_modes(arms):
                                 else 'XYZ')
 
 
-def build_nla(objs, hidden_act, throw_clips):
+def _fit_strip(strip, n):
+    """Pin the strip to frames 1..n at 1:1 speed. The exporter derives each
+    track's bake range from the strip range — this makes clip length a
+    hard invariant instead of an emergent property of action ranges."""
+    try:
+        strip.use_sync_length = False
+    except Exception:
+        pass
+    strip.action_frame_start = 1
+    strip.action_frame_end = n
+    strip.frame_start = 1
+    strip.frame_end = n
+    strip.scale = 1.0
+
+
+def build_nla(objs):
     clips = sorted({c for _, c, _ in STASHES})
     by_obj = {}
     for oname, clip, act in STASHES:
@@ -396,21 +532,22 @@ def build_nla(objs, hidden_act, throw_clips):
             ad.nla_tracks.remove(track)
         for clip in clips:
             act = by_obj.get(obj.name, {}).get(clip)
-            if act is None and obj.name == 'ThrowingKnife':
-                act = hidden_act        # non-throw clips: knife hidden
             if act is None:
                 continue
             track = ad.nla_tracks.new()
             track.name = clip
             strip = track.strips.new(clip, 1, act)
             strip.name = clip
-            slots = getattr(act, 'slots', None)
-            if slots and hasattr(strip, 'action_slot'):
-                try:
-                    strip.action_slot = slots[0]
-                except Exception as exc:
-                    print('WARN action_slot assign failed:', exc)
-        print('NLA for %s: %d tracks' % (obj.name, len(ad.nla_tracks)))
+            _assign_slot(strip, act)
+            _fit_strip(strip, CLIP_FRAMES[clip])
+            if int(strip.frame_end) != CLIP_FRAMES[clip]:
+                raise RuntimeError('strip range drift: %s/%s ends %s want %d'
+                                   % (obj.name, clip, strip.frame_end,
+                                      CLIP_FRAMES[clip]))
+        print('NLA for %s: %d tracks, strip ends %s'
+              % (obj.name, len(ad.nla_tracks),
+                 [(t.name, int(t.strips[0].frame_end))
+                  for t in ad.nla_tracks]))
 
 
 def cleanup_scene(keep):
@@ -525,7 +662,9 @@ def void_world(right, clip, frame):
 # ═══════════════ PHASE I: metadata sidecars ═══════════════
 
 def t_of(frame):
-    return round((frame - 1) / FPS, 4)
+    # the exporter's baked sampler places frame f at f/60 s (verified by GLB
+    # parse: first sample 0.0167, clip length N/60) — NOT (f-1)/60.
+    return round(frame / FPS, 4)
 
 
 def phase_start(phases, label):
@@ -594,10 +733,13 @@ def build_seats(knife_ns, right):
                       "(right = Armature.001 subtree, left = Armature.003 subtree; "
                       "glTF may rename dots to underscores)",
             'usage': note,
-            'chirality_note': 'seat matrices under the mirrored right hand have '
-                              'negative determinant; a CHIRAL prop attached this '
-                              'way renders mirror-flipped (fine for Silverlight '
-                              'which was tuned in this frame; see brief footnote)',
+            'chirality_note': 'the RIGHT hand joint world matrix has NEGATIVE '
+                              'determinant (mirrored armature); any prop parented '
+                              'there renders mirror-flipped. The seat matrices '
+                              'themselves are proper (det>0) and were tuned in '
+                              'this frame, so Silverlight/knife look correct; a '
+                              'new CHIRAL prop needs a mirror-corrected mesh or '
+                              'seat (see brief footnote)',
         },
         'silverlight_sword': {
             'source_glb': 'Silverlight.glb (raw node, no import conversion)',
@@ -630,6 +772,11 @@ def export_glb(path):
         export_bake_animation=True,
         export_force_sampling=True,
         export_optimize_animation_size=False,
+        # constant channels MUST survive: the parked left hand / hidden knife
+        # are constant by design, and a culled channel means runtime leakage
+        # from whatever clip played before
+        export_optimize_animation_keep_anim_armature=True,
+        export_optimize_animation_keep_anim_object=True,
         export_def_bones=False,
         export_skins=True,
         export_yup=True,
@@ -658,20 +805,23 @@ def main():
     right = bpy.data.objects['Armature.001']
     left = bpy.data.objects['Armature.003']
 
-    hidden_act = build_hidden_knife_action(knife, con)
     set_rotation_modes((right, left))
-    build_nla((right, left, knife), hidden_act,
-              ('knife_throw_blade_first', 'knife_throw_handle_first'))
+    build_nla((right, left, knife))
 
     # final scene: hands + knife only, under the meters root
     cleanup_scene({'Armature.001', 'Armature.003', 'Sphere.001', 'Sphere.002',
                    'ThrowingKnife'})
-    # knife base state = hidden (non-throw clips also key this via NLA)
+    root = add_root((right, left, knife), knife, con)
+
+    # bake the knife's constrained motion ourselves (correct solo state),
+    # then drop the constraint + add the hidden-knife tracks
+    prebake_knife_tracks(root, right, left, knife, knife_ns)
+    add_hidden_knife_tracks(knife, [c for c in sorted(CLIP_FRAMES)
+                                    if not c.startswith('knife_throw')])
+    # knife base state = hidden
     knife.location = (0.0, 0.0, -30.0)
-    knife.rotation_euler = (0.0, 0.0, 0.0)
+    knife.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
     knife.scale = (0.001,) * 3
-    con.influence = 0.0
-    add_root((right, left, knife), knife, con)
 
     scene = bpy.context.scene
     scene.frame_start, scene.frame_end = 1, max(CLIP_FRAMES.values())
