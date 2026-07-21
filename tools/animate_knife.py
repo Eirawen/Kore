@@ -6,9 +6,16 @@ world-space keys. The hand truly lets go.
 
 Run headless (Windows Blender, from WSL):
   "/mnt/c/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
-    "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/cgtrader_hand.blend" \
+    "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/cgtrader_hand_wristed.blend" \
     --python "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/tools/animate_knife.py" \
     -- knife_throw_blade_first     # or knife_throw_handle_first / all
+
+PORTED TO THE WRISTED RIG (2026-07-21): canonical target is now
+cgtrader_hand_wristed.blend. The ChildOf release constraint targets the
+armature OBJECT (rename-safe across the Bone->forearm/hand split) and the
+influence 1->0 switch keys correctly on the wristed rig — verified by
+grid render: knife detaches at the flick/hurl, flies downrange at correct
+scale, hand opens into follow-through.
 
 Staging, chirality fix, world-space key solver, euler unwrap and render
 plumbing are shared with tools/animate_sword.py (exec-included below).

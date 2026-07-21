@@ -3,9 +3,17 @@ Keyframed first-person spell-cast animations for the cgtrader two-hand asset.
 
 Run headless (Windows Blender, from WSL):
   "/mnt/c/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
-    "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/cgtrader_hand.blend" \
+    "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/cgtrader_hand_wristed.blend" \
     --python "\\\\wsl.localhost\\Ubuntu/home/khaled/Kore/tools/animate_casts.py" \
     -- air_strike            # or water_strike / fire_strike / earth_strike / all
+
+PORTED TO THE WRISTED RIG (2026-07-21): the canonical target is now
+cgtrader_hand_wristed.blend (root 'Bone' split into forearm->hand, 2-DOF
+wrist limits). The casts only reference finger bones (Bone.001-019) and
+object transforms; 'hand'/'forearm' stay at rest, so deformation parity
+with the canonical rig holds by construction (verified by pixel diff:
+8/8 test stills mean diff <0.007/255). Still runs unchanged against the
+pre-wrist cgtrader_hand.blend if ever needed.
 
 Staging (camera, lights, mirror, matte, hand local axes) is lifted verbatim from
 tools/render_hands_fp.py — that script settled the first-person frame. This one
