@@ -82,6 +82,13 @@ Two footnotes:
 - the knife test exports `--no-root-scale` (hand units): the release
   scale swap assumes hand units end-to-end. Folding the knife under the
   meters root empty is the real exporter's one remaining integration.
+  **RESOLVED (2026-07-21, final package):** parent the knife under
+  `FPHandsRoot` and set the ChildOf `inverse_matrix = root_scale^-1`.
+  ChildOf composes `final = (target @ inverse) @ (parent @ basis)`; the
+  inverse cancels the root on the in-hand path (the target arm already
+  carries it) while free flight becomes `root @ basis` — every authored
+  hand-unit key stays valid, world scale magnitude 1.001 m constant
+  across the release (browser-verified).
 
 Browser screenshot gotcha found here: the test page's RAF loop keeps
 playing after `__seek`, so screenshots drifted (a wrapped LoopRepeat clip
@@ -98,6 +105,44 @@ with `assets/test_knife.glb` (26 cm). Measured in the browser (world-space
 skinned bbox): whole ready pose = 0.46 × 1.10 × 0.56 m — two hands + raised
 rapier, sane. The glTF exporter itself has NO scale option; the wrapper
 empty is the unit story.
+
+## Final-package landmines (2026-07-21, export_fp_hands_final.py)
+
+Found assembling the real 11-clip `fp_hands.glb`; each cost a debug loop
+against GLB binary parses. All fixed in `tools/export_fp_hands_final.py`.
+
+### 6. Multi-track constraint bake uses the WRONG cross-object state
+In NLA_TRACKS mode the exporter bakes each object's track after muting
+only THAT OBJECT's other tracks — other objects sit at their full
+unmuted NLA stack (last track wins). A constraint whose target is
+another object (the knife's ChildOf → armature) therefore bakes against
+the wrong armature animation as soon as multiple tracks exist. The
+spike's knife proof passed ONLY because knife clips were exported alone.
+Fix: pre-bake the constrained object's parent-local TRS per frame in
+Blender with the correct per-clip `is_solo` state, key it plainly
+(quaternion mode, LINEAR), and DELETE the constraint before export.
+
+### 7. Blender 5 implicit action reuse corrupts stashed actions
+`keyframe_insert` with `animation_data.action == None` can silently
+re-use/extend a previously stashed action instead of creating a fresh
+one (slotted-actions behavior). Symptom: the left hand's `sword_light`
+action absorbed the idle keys — action frame_range ballooned to 121, and
+since NLA strip length follows action range, the exported sword_light
+became 2.017 s with a dead tail. Fix: ALWAYS create actions explicitly
+(`bpy.data.actions.new` + slot + assign), clear `action_slot` before
+`action = None` when stashing, and pin every strip to its clip length
+(`action_frame_start/end` + `frame_start/end`) with a hard validation.
+
+### 8. Constant OBJECT channels are culled even with optimize OFF
+`export_optimize_animation_size=False` does NOT keep constant object
+channels — `export_optimize_animation_keep_anim_object=True` does
+(armature counterpart already defaults True). A culled channel is
+runtime cross-clip leakage: the parked left hand / hidden knife would
+stay wherever the previous clip left them.
+
+### Bonus: baked sampler time base
+Baked samples put frame f at `f/60` s (first sample 0.0167), NOT
+`(f-1)/60`. Event timestamps must use `frame/60`.
 
 ## Working exporter settings (Blender 5.1.2)
 ```python
