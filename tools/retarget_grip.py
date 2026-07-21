@@ -32,6 +32,14 @@ from mathutils import Vector, Euler, Matrix, Quaternion
 GRIP_JSON = r'\\wsl.localhost\Ubuntu\home\khaled\Kore\poses\khaled_grip_extract.json'
 OUT_JSON = r'\\wsl.localhost\Ubuntu\home\khaled\Kore\poses\grip_retargeted.json'
 
+# AMENDMENT (2026-07-21, approved by Khaled): his authored thumb TIP
+# (Bone.003) came in folded ~170 deg about a skew axis — anatomically broken
+# (a thumb DIP flexes ~80 deg max). Relax the TIP to a natural flexion;
+# his thumb BASE + MID (Bone.001/002) stay verbatim, as do all other
+# fingers. Applied here at the grip-baseline level so every sword clip
+# inherits it.
+THUMB_TIP_FLEX_DEG = 40.0
+
 # reuse the standard FP staging (constants + defs only, main() stripped)
 SRC = r'\\wsl.localhost\Ubuntu\home\khaled\Kore\tools\seat_grip.py'
 _code = open(SRC).read()
@@ -179,6 +187,13 @@ def build_retargeted_grip():
     lb = data['armatures']['Armature.003']['bones']
     apply_finger_pose(right, rb)
     apply_finger_pose(left, lb)
+
+    # thumb-tip amendment (see THUMB_TIP_FLEX_DEG above): right hand only —
+    # the left thumb tip in his extract is already in natural range.
+    tip = right.pose.bones['Bone.003']
+    tip.rotation_mode = 'QUATERNION'
+    tip.rotation_quaternion = Quaternion((1, 0, 0),
+                                         math.radians(THUMB_TIP_FLEX_DEG))
 
     # exactness check target BEFORE redistribution
     R_target = distal_rot_target(right, rb['hand'])
