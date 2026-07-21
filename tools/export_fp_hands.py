@@ -48,6 +48,7 @@ import animate_sword as sw   # noqa: E402  (main() is __name__-guarded)
 
 DEFAULT_OUT = r'C:\tmp\fp_hands_test.glb'
 DEFAULT_CLIPS = ['sword_light', 'sword_guard']
+KNIFE_PREFIX = 'knife_throw'
 
 # Hand units -> meters. Wrist ~= origin+3.1 along forearm dir, fingertip
 # ~= +6.0 (gotcha #18), so wrist->fingertip = 2.9 units. Real hand ~19 cm.
@@ -196,6 +197,63 @@ def stash_clips(clip_names):
     print('stashed clips on NLA tracks:', clip_names)
 
 
+# ─────────── landmine 4 (the real one): constraint-baked knife ───────────
+
+def load_knife_defs():
+    """Exec tools/animate_knife.py minus its knife_main() run: yields
+    KNIFE_ANIMS (solved+retimed), attach_knife, build_knife_animation and
+    the shared staging (animate_sword defs) in one namespace."""
+    code = open(os.path.join(_HERE, 'animate_knife.py')).read()
+    ns = {}
+    exec(code[:code.rfind('def knife_main')], ns)
+    return ns
+
+
+def stash_knife_clips(ns, clip_names):
+    """Knife counterpart of stash_clips: each clip keys BOTH armatures and
+    the knife object (seat -> flight keys + the ChildOf influence 1->0 and
+    the 3.118 scale swap, all in the knife's own action). Everything parks
+    on NLA tracks named after the clip; the exporter's forced sampling
+    must bake the CONSTRAINT-driven world motion into the knife node —
+    that is the landmine this path exists to test."""
+    knife, con = ns['attach_knife'](ns['KNIFE_ANIMS'][clip_names[0]]['seat'])
+    knife.name = 'ThrowingKnife'
+    objs = [bpy.data.objects[ns['RIGHT_ARM']],
+            bpy.data.objects[ns['LEFT_ARM']], knife]
+    stashes = []   # (obj, clip, action)
+    max_frame = 1
+    for clip in clip_names:
+        ns['build_knife_animation'](clip, knife, con)
+        max_frame = max(max_frame, ns['KNIFE_ANIMS'][clip]['frames'])
+        for obj in objs:
+            act = obj.animation_data.action
+            act.name = '%s__%s' % (clip, obj.name)
+            act.use_fake_user = True
+            stashes.append((obj, clip, act))
+            obj.animation_data.action = None
+    for obj in objs:
+        ad = obj.animation_data or obj.animation_data_create()
+        for track in list(ad.nla_tracks):
+            ad.nla_tracks.remove(track)
+    for obj, clip, act in stashes:
+        track = obj.animation_data.nla_tracks.new()
+        track.name = clip
+        strip = track.strips.new(clip, 1, act)
+        strip.name = clip
+        slots = getattr(act, 'slots', None)
+        if slots and hasattr(strip, 'action_slot'):
+            try:
+                strip.action_slot = slots[0]
+            except Exception as exc:
+                print('WARN action_slot assign failed:', exc)
+    scene = bpy.context.scene
+    scene.frame_start, scene.frame_end = 1, max_frame
+    print('stashed knife clips on NLA tracks:', clip_names,
+          '| knife constraint influence keyed:',
+          [c.type for c in knife.constraints])
+    return knife
+
+
 # ───────────────────── landmine 5: units root ─────────────────────
 
 def add_root_scale():
@@ -241,6 +299,23 @@ def export_glb(path):
 def main():
     opts = parse_args()
     print('export_fp_hands opts:', json.dumps(opts))
+
+    knife_mode = all(c.startswith(KNIFE_PREFIX) for c in opts['clips'])
+    if knife_mode:
+        # knife clips: exercise the influence-keyed ChildOf release under
+        # the exporter's forced sampling (spike landmine #4, still open).
+        # Unit-root intentionally skipped: the release scale swap assumes
+        # hand units end-to-end; root-scale handling for the knife is the
+        # real exporter's (small) remaining integration.
+        ns = load_knife_defs()
+        ns['strip_scene']()
+        ns['stage_hands']()
+        ns['apply_matte']([bpy.data.objects[ns['RIGHT_MESH']],
+                           bpy.data.objects[ns['LEFT_MESH']]])
+        stash_knife_clips(ns, opts['clips'])
+        bpy.context.scene.render.fps = FPS
+        export_glb(opts['out'])
+        return
 
     sw.strip_scene()
     sw.stage_hands()

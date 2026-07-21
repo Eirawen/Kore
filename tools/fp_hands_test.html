@@ -54,6 +54,7 @@ window.__info = { status: 'loading' };
 
 new GLTFLoader().load('/fp_hands_test.glb', (gltf) => {
     gltfRoot = gltf.scene;
+    window.__sceneRoot = gltfRoot;   // node-level probes (knife release proof)
     scene.add(gltfRoot);
 
     const names = gltf.animations.map(a => `${a.name} (${a.duration.toFixed(2)}s, ${a.tracks.length} tracks)`);
@@ -140,9 +141,10 @@ window.__playClip = (name) => {
 window.__shot = () => renderer.domElement.toDataURL('image/png');
 
 const clock = new THREE.Clock();
+window.__paused = false;   // freeze playback for deterministic screenshots
 function loop() {
     requestAnimationFrame(loop);
-    if (mixer) mixer.update(clock.getDelta());
+    if (mixer && !window.__paused) mixer.update(clock.getDelta());
     renderer.render(scene, camera);
 }
 loop();

@@ -58,13 +58,36 @@ metric at export: 0.0000 — no restructure needed. Two caveats:
   the wristed rig, where the sword will hang off an animated wrist bone.
 - Bone parenting hangs children off the bone TAIL, not the head.
 
-### 4. Constraints — NOT EXERCISED (canonical rig has none), settings ready
-The canonical scene has zero object or pose-bone constraints (probed). The
-export path already forces full sampling (`export_bake_animation` +
-`export_force_sampling`), which is what bakes constraint results into
-curves. **Must be re-verified on the wristed rig** (Limit Rotation + the
-2-DOF wrist): landmine is still open there, but the harness to test it in
-minutes now exists.
+### 4. Constraints — PROVEN (2026-07-21, knife release on the wristed rig)
+The hard case is closed: `knife_throw_blade_first` (influence-keyed ChildOf
+release + the 3.118 scale swap, gotcha #30) exported from
+`cgtrader_hand_wristed.blend` (Limit Rotation wrist constraints present)
+via the knife path in `export_fp_hands.py`, verified in three.js by
+`tools/fp_knife_shot.js` with a NUMERIC node probe (`window.__sceneRoot`
+hook in the test page):
+- knife↔hand distance **3.824 constant** while in hand (t ≤ 0.83 s),
+  then 4.7 → 10.2 → 23.7 → 45.0 after the release — detaches in the
+  BROWSER and flies downrange ballistically;
+- knife world-scale magnitude **15.278 = 4.9 × 3.118 constant across the
+  switch** — the release scale swap survives the bake, no shrink;
+- one clip, 133 tracks: both armatures + the knife object merged via the
+  same-named NLA tracks.
+
+Two footnotes:
+- the baked knife node scale flips SIGN at release (−15.278 → +15.278 on
+  x): while pinched, the mirrored hand's negative determinant is baked
+  into the knife node. Matches Blender's render (faithful bake), and a
+  cone is symmetric so it's invisible — but a CHIRAL prop would render
+  mirror-flipped while held. Consider `--bake-mirror` for chiral props.
+- the knife test exports `--no-root-scale` (hand units): the release
+  scale swap assumes hand units end-to-end. Folding the knife under the
+  meters root empty is the real exporter's one remaining integration.
+
+Browser screenshot gotcha found here: the test page's RAF loop keeps
+playing after `__seek`, so screenshots drifted (a wrapped LoopRepeat clip
+masqueraded as a shrunken knife). `window.__paused = true` freezes the
+mixer for deterministic stills; the synchronous numeric probes were never
+affected.
 
 ### 5. Scale/units — SOLVED with a root-scale empty
 Hands were staged at 3.118 with wrist→fingertip = 2.9 world units. A root
