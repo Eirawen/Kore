@@ -579,4 +579,5 @@ def main():
             render_animation(name)
 
 
-main()
+if __name__ == '__main__':
+    main()
