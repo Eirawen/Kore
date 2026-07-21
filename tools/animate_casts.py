@@ -75,6 +75,19 @@ POSES = {
     'open':  {'f': [4, 8, 4],     'thumb': [10, 15, 8]},    # presenting palm
     'fling': {'f': [-12, -8, -2], 'thumb': [-12, -5, 0]},   # splayed release
     'knife_seal': {'f': [4, 6, 4], 'thumb': [55, 35, 15]},  # flat hand, thumb TUCKED
+    # EARTH fist (Kore's note): the old 'fist' thumb (40/50/30) leaves a
+    # loose thumb-index "O" at the silhouette — reads as a crank grip, not a
+    # fist. fist_tight curls the fingers to the palm and wraps the thumb
+    # OVER the curled index/middle: zero O-gap, closed silhouette.
+    # thumb_rooty: X-curl alone only flexes the thumb in its own jutting
+    # plane (probed: 45->75 deg X barely moves the silhouette hook). Real
+    # fists ADDUCT the thumb across the palm = +Y on the thumb root
+    # (Bone.001). Probed +35: thumb lies snug over the curled fingers.
+    'fist_tight': {'f': [95, 105, 78], 'thumb': [55, 60, 40],
+                   'thumb_rooty': 38},
+    # fire's off-hand support: low knuckle curl, more closed than 'cup' so
+    # it reads as a resting curl, not an open dead claw
+    'support_curl': {'f': [55, 60, 40], 'thumb': [30, 35, 20]},
 }
 
 HAND_SCALE = 3.118
@@ -227,11 +240,16 @@ def key_obj(arm, frame, loc, rot_deg):
 
 
 def key_pose(arm, frame, pose_name):
-    """Apply a finger pose and keyframe every chain bone's X curl."""
+    """Apply a finger pose and keyframe every chain bone's X curl.
+    Optional pose key 'thumb_rooty': +Y euler (deg) on the thumb root =
+    adduction across the palm (fists). keyframe_insert writes the whole
+    euler, so poses without it key the root Y back to 0 — no stale wrap."""
     pose = POSES[pose_name]
     for finger, chain in CHAINS.items():
         angles = pose.get(finger, pose.get('f'))
         if finger == 'thumb':
+            arm.pose.bones[chain[0]].rotation_euler.y = math.radians(
+                pose.get('thumb_rooty', 0.0))
             phalanges = chain
         else:
             meta = arm.pose.bones[chain[0]]
@@ -268,6 +286,58 @@ def smooth_fcurves(arm):
 def clear_anim(arm):
     arm.animation_data_clear()
     clear_pose(arm)
+
+
+# ───────────────────── micro-life: hold tremble ─────────────────────
+# Kore's global note: any hold > 0.4 s with frozen fingers reads as a paused
+# game. During long holds the fingers get subtle IRREGULAR keys (2-3 deg)
+# around the base pose — fire simmers, the seal breathes. Deterministic
+# shader-style noise (no random module: same result every run).
+
+def _noise(a, b):
+    """Deterministic pseudo-noise in [-1, 1) from two floats."""
+    v = math.sin(a * 12.9898 + b * 78.233) * 43758.5453
+    return (v - math.floor(v)) * 2.0 - 1.0
+
+
+def key_tremble(arm, f0, f1, pose_name, amp):
+    """Irregular finger keys strictly inside (f0, f1): base pose plus
+    per-phalange jitter of +-amp degrees, at uneven 5-9 frame spacing.
+    Endpoints stay untouched so the existing hold keys own the pose."""
+    pose = POSES[pose_name]
+    f, j = f0 + 4, 0
+    while f < f1 - 2:
+        for fi, (finger, chain) in enumerate(CHAINS.items()):
+            angles = pose.get(finger, pose.get('f'))
+            if finger == 'thumb':
+                arm.pose.bones[chain[0]].rotation_euler.y = math.radians(
+                    pose.get('thumb_rooty', 0.0))
+                phalanges = chain
+            else:
+                meta = arm.pose.bones[chain[0]]
+                meta.rotation_euler.x = math.radians(
+                    angles[0] * METACARPAL_FRACTION)
+                meta.keyframe_insert('rotation_euler', frame=f)
+                phalanges = chain[1:]
+            for bi, (bone_name, deg) in enumerate(zip(phalanges, angles)):
+                d = deg + amp * _noise(fi * 3.7 + bi * 1.3, j * 2.1)
+                pb = arm.pose.bones[bone_name]
+                pb.rotation_euler.x = math.radians(d)
+                pb.keyframe_insert('rotation_euler', frame=f)
+        j += 1
+        f += 7 + int(round(2.0 * _noise(1.7, j * 5.3)))
+
+
+# per-cast tremble spans: (side, f0, f1, pose_name, amp_deg) in AUTHORED
+# frames (remapped through 'retime' at import like everything else).
+# Water intentionally absent: the approved reference cast stays untouched.
+TREMBLES = {
+    'air_strike':  [('right', 30, 50, 'knife_seal', 2.2),
+                    ('left',  30, 50, 'knife_seal', 2.2)],
+    'fire_strike': [('right', 16, 34, 'cup', 3.0)],          # fire simmers
+    'earth_strike': [('left', 30, 66, 'fist_tight', 1.8),    # clenched strain
+                     ('right', 8, 24, 'fist_tight', 1.8)],   # pre-chamber wait
+}
 
 
 # ───────────────────── timing / spacing pass ─────────────────────
@@ -322,9 +392,14 @@ ANIMS['air_strike'] = {
     'left': [
         (1,  (-2.05, 0.0, -0.7), (14, -9, -172),  'idle'),
         (10, (-2.30, -0.4, -1.0), (22, -9, -172), 'idle'),
-        (20, (-1.80, -0.5, 1.0), (45, -4, -188),  'knife_seal'),  # pitching forward on the way up
-        (30, (-0.55, -0.6, 2.80), (78, 0, -184),  'knife_seal'),  # sandwich top, palm down, gap above
-        (50, (-0.55, -0.6, 2.85), (78, 0, -184),  'knife_seal'),  # hold
+        (20, (-1.80, -0.5, 1.0), (40, -4, -192),  'knife_seal'),  # pitching forward on the way up
+        # seal top: pitch cheated 14 deg toward camera + a few deg of yaw so
+        # the flat of the hand and the finger silhouette read (the old 78/-184
+        # aimed the forearm stub's cut end at the lens: featureless egg).
+        # Pulled toward frame center so the GAP under it reads as the orb's
+        # deliberate home, not an accident.
+        (30, (-0.30, -0.6, 2.78), (52, 0, -204),  'knife_seal'),  # sandwich top, palm down, gap above
+        (50, (-0.30, -0.6, 2.83), (52, 0, -204),  'knife_seal'),  # hold
         (58, (-2.20, -0.6, 3.0), (58, 0, -215),   'knife_seal'),  # peels back-outboard
         (66, (-3.60, -0.3, 2.5), (40, 0, -228),   'open'),   # clear of the throw
         (78, (-3.70, -0.1, 2.3), (35, 0, -224),   'open'),   # settle low-outboard
@@ -377,8 +452,10 @@ ANIMS['fire_strike'] = {
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),   'idle'),
         (6,  (2.20, -0.2, -0.95), (22, 9, 172),  'idle'),    # dip
         (11, (1.80, 0.15, 0.0),  (-45, 5, 90),   'cup'),     # scoop: supinating roll
-        (16, (1.40, 0.5, 1.0),   (-108, 0, 10),  'cup'),     # palm up tilted away, cupped
-        (34, (1.40, 0.55, 1.05), (-108, 0, 10),  'cup'),     # flicker beat
+        # cup tilted 10 deg toward camera (-108 -> -98) so the curled finger
+        # rim reads as a vessel instead of an egg-with-fingertips
+        (16, (1.40, 0.5, 1.0),   (-94, 0, 10),   'cup'),     # palm up, cupped, rim to camera
+        (34, (1.40, 0.55, 1.05), (-94, 0, 10),   'cup'),     # flicker beat
         (40, (1.70, -0.2, 0.3),  (-94, 0, 10),   'cup'),     # anticipation pull
         (42, (1.35, 1.8, -0.1),  (-45, 0, -110), 'open'),    # pronating mid-swing
         (47, (1.05, 4.4, -0.5),  (-32, 0, -180), 'fling'),   # release
@@ -386,11 +463,16 @@ ANIMS['fire_strike'] = {
         (54, (1.20, 3.7, -0.9),  (-26, 0, -180), 'open'),
     ],
     'left': [
+        # aebbe01 sank it, but not far enough: at z -2.2 the open 'cup' claw
+        # still stood mid-frame-tall and dead, stealing focus from the cast
+        # hand. Now it sinks to a LOW knuckle-curl at the frame edge —
+        # only the curled knuckle line crests the bottom of frame, pitched
+        # a touch toward camera so it reads as a resting hand, not a stub.
         (1,  (-2.05, 0.0, -0.7),  (14, -9, -172), 'idle'),
-        (11, (-2.45, 0.3, -1.9),  (28, -9, -172), 'cup'),   # sinks low, loose support curl
-        (16, (-2.55, 0.4, -2.2),  (30, -9, -172), 'cup'),   # mostly out of frame
-        (40, (-2.55, 0.4, -2.2),  (30, -9, -172), 'cup'),   # stays low through the fling
-        (54, (-2.45, 0.3, -1.9),  (28, -9, -172), 'cup'),
+        (11, (-2.55, 0.3, -2.5),  (32, -9, -172), 'support_curl'),  # sinking
+        (16, (-2.80, 0.4, -3.2),  (38, -9, -172), 'support_curl'),  # low knuckle crest
+        (40, (-2.80, 0.4, -3.2),  (38, -9, -172), 'support_curl'),  # stays low through the fling
+        (54, (-2.65, 0.3, -2.8),  (34, -9, -172), 'support_curl'),
     ],
     'phases': [(1, 'rest'), (7, 'present'), (17, 'flicker beat'),
                (35, 'anticipate'), (41, 'fling'), (48, 'follow-through')],
@@ -406,23 +488,28 @@ ANIMS['earth_strike'] = {
     'retime': [(1, 1), (8, 18), (19, 52), (24, 58), (34, 84), (42, 96), (66, 124)],
     'right': [
         (1,  (2.05, 0.0, -0.7),  (14, 9, 172),   'idle'),
-        (8,  (2.10, -0.1, -0.75), (16, 9, 172),  'fist'),    # clench
-        (24, (2.15, -0.2, -0.55), (18, 9, 172),  'fist'),    # waits, slight lift
-        (29, (2.35, -0.85, -0.5), (-15, 0, 91),  'fist'),    # rolling into chamber
-        (34, (2.50, -1.5, -0.4), (-48, -12, 10), 'fist'),    # chamber back (palm-up roll)
-        (42, (1.20, 2.6, -1.0),  (-58, -4, 6),   'fist'),    # PUNCH forward
-        (48, (1.45, 2.0, -1.05), (-50, -6, 7),   'fist'),    # recoil
-        (66, (1.70, 1.5, -1.1),  (-42, -7, 8),   'fist'),    # settle
+        (8,  (2.10, -0.1, -0.75), (16, 9, 172),  'fist_tight'),  # clench
+        (24, (2.15, -0.2, -0.55), (18, 9, 172),  'fist_tight'),  # waits, slight lift
+        (29, (2.35, -0.85, -0.5), (-15, 0, 91),  'fist_tight'),  # rolling into chamber
+        (34, (2.50, -1.5, -0.4), (-48, -12, 10), 'fist_tight'),  # chamber back (palm-up roll)
+        (42, (1.20, 2.6, -1.0),  (-58, -4, 6),   'fist_tight'),  # PUNCH forward
+        (48, (1.45, 2.0, -1.05), (-50, -6, 7),   'fist_tight'),  # recoil
+        (66, (1.70, 1.5, -1.1),  (-42, -7, 8),   'fist_tight'),  # settle
     ],
     'left': [
         (1,  (-2.05, 0.0, -0.7), (14, -9, -172), 'idle'),
-        (8,  (-2.10, -0.1, -0.75), (16, -9, -172), 'fist'),  # clench
-        (12, (-2.00, 0.25, 0.3), (0, 0, -120),   'fist'),    # wind-up roll begins
-        (16, (-1.90, 0.6, 1.4),  (-10, 3, -60),  'fist'),    # wind-up rise, still rolling
-        (19, (-1.95, 0.4, 1.9),  (-40, 7, -8),   'fist'),    # overshoot up, roll done
-        (24, (-1.55, 1.7, 4.0),  (-180, 5, -8),  'fist'),    # SLAM down (fist z~-0.3)
-        (30, (-1.55, 1.7, 4.15), (-175, 5, -8),  'fist'),    # impact bounce
-        (66, (-1.60, 1.6, 4.20), (-174, 5, -8),  'fist'),    # holds low
+        (8,  (-2.10, -0.1, -0.75), (16, -9, -172), 'fist_tight'),  # clench
+        (12, (-2.00, 0.25, 0.3), (0, 0, -120),   'fist_tight'),    # wind-up roll begins
+        (16, (-1.90, 0.6, 1.4),  (-10, 3, -60),  'fist_tight'),    # wind-up rise, still rolling
+        (19, (-1.95, 0.4, 1.9),  (-40, 7, -8),   'fist_tight'),    # overshoot up, roll done
+        (24, (-1.55, 1.7, 4.0),  (-180, 5, -8),  'fist_tight'),    # SLAM down (fist z~-0.3)
+        # after impact the arm rocks THROUGH vertical toward the camera
+        # (X past -180): the fist tips toward the lens and its knuckle line
+        # crowns the visible column while the forearm recedes behind it —
+        # instead of leaning away and presenting the stub's cut end as a
+        # featureless egg for a second
+        (30, (-1.58, 1.62, 3.95), (-200, 6, -8), 'fist_tight'),    # impact rock toward camera
+        (66, (-1.65, 1.55, 3.88), (-196, 7, -8), 'fist_tight'),    # holds, knuckles crowning
     ],
     'phases': [(1, 'rest'), (4, 'clench'), (12, 'wind-up'), (20, 'slam down'),
                (27, 'chamber'), (38, 'punch fwd'), (45, 'follow-through')],
@@ -440,6 +527,9 @@ def build_animation(name):
             key_obj(arm, frame, loc, rot)
             if pose:
                 key_pose(arm, frame, pose)
+        for tside, f0, f1, tpose, amp in TREMBLES.get(name, []):
+            if tside == side:
+                key_tremble(arm, f0, f1, tpose, amp)
         smooth_fcurves(arm)
     scene = bpy.context.scene
     scene.frame_start, scene.frame_end = 1, spec['frames']
@@ -479,6 +569,10 @@ def _apply_retime():
         if name in TEST_FRAMES:
             TEST_FRAMES[name] = [remap_frame(fr, anchors)
                                  for fr in TEST_FRAMES[name]]
+        if name in TREMBLES:
+            TREMBLES[name] = [(side, remap_frame(f0, anchors),
+                               remap_frame(f1, anchors), pose, amp)
+                              for side, f0, f1, pose, amp in TREMBLES[name]]
 
 
 _apply_retime()
