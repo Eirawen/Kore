@@ -138,3 +138,21 @@ Punch list for the in-game pass:
 
 Capture driver: Kore/tools/vfx_capture/capture_railgun.js (playwright via
 absolute require to crescent's node_modules; swiftshader args mandatory).
+
+## BLESSED — v8, 2026-07-22
+
+"OH YEAH. THIS IS IT. THIS IS RAILGUN." — the operator, four GOATs deep.
+
+Final form: THE FILAMENT STORM. No tube — 40 braided rail filaments
+(white core emergent from axis density), 10 lightning branches (free-ended
+forks born on the rail), 3 ground-out strays (downward-biased long arcs),
+all teleporting to fresh configurations every 45ms, dying outliers-first
+into a single cooling wire. Bigger through chaos, never through scale.
+
+The night's version arc, each driven by one Khaled sentence:
+v1 carrot → v2 thin rail → v3 blackbody white → v4 heat-gated halo →
+v5 caterpillar (lesson) → v6 crackling needle → v7 filament rail →
+v8 THE STORM. Eight looks in one evening, 45-min laps, his eye + my hands.
+
+Remaining: wire cast events → harness in-game (aim_lock→charge,
+fire→fire, muzzle = right index tip) — rides Sable's viewmodel event bus.
