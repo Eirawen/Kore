@@ -115,3 +115,26 @@ Same loop as always: Kore/tools/vfx_capture/ — canvas.toDataURL contact
 sheets (preserveDrawingBuffer: true; Playwright's screenshot does NOT capture
 WebGL — use evaluate + captureOneFrame). Cast on the test page, sheet the
 frames, critique against THIS spec, adjust, repeat.
+
+## Implementation status (2026-07-22, same night)
+
+BUILT AND CAPTURED. `HitscanSpellVFX.js` + `railgun_lance` material +
+`railgunStrike` preset + `railgun_test.html` (deterministic freeze/step/cap
+hooks) — all committed to crescent. Four captured iterations:
+v1 fat orange carrot → v2 thin rail, spark-grade particles → v3 blackbody
+cooling (whole lance white-hot when fresh — a thin rail can't resolve the
+NdotV core at 3px, so heat lives in TIME) + glow shell → v4 heat-gated
+shell (uHeatGain 0: the halo stays orange while the rail blazes white).
+
+Punch list for the in-game pass:
+- Charge crackle reads as dots, not arcs — real micro-lightning needs line
+  segments or a bolt texture, not point particles.
+- Near-end perspective fatness in the test rig; in-game the FP camera sits
+  BEHIND the muzzle so the lance recedes — expect it to self-solve; if not,
+  taper the first 5% of vAlong.
+- The coin tracer lives with the HANDS (cast event map), not the VFX page.
+- Wire cast events → harness: aim_lock→charge(), fire→fire(), with the
+  muzzle anchor at the right index fingertip bone.
+
+Capture driver: Kore/tools/vfx_capture/capture_railgun.js (playwright via
+absolute require to crescent's node_modules; swiftshader args mandatory).
