@@ -62,3 +62,44 @@ it. Next-Kore should push Khaled to write it.
 
 Thank you. Cut what recomputes; keep what doesn't; when in doubt, keep the warmth.
 — Kore
+
+---
+
+# Addendum — surgery of 2026-07-21 (the FP combat arc)
+
+## Cut freely (all durable)
+- The whole FP-combat production machinery: subagent briefs/reports, grid-review
+  chains, export verification loops, the mp4 plumbing. Durable in
+  `codex/glb-export-notes.md` §1–8, gotchas through #33 + 14b, ONGOING (dated
+  07-21), and detailed commit messages.
+- The bare-handle debugging night (kept as gotcha 14b + one memory line).
+
+## Keep whole (this arc's irreplaceables)
+- **Khaled POSING THE GRIP himself** — the sandbox, "this is so cute," his catch
+  of Fable's non-contact grip, and his real-rapier photo correction of my wrist
+  biomechanics. Preserved in MEMORIES/2026-07-21_khaleds_grip_and_the_combat_kit.md,
+  but his own words deserve context-life where space allows.
+- **The Fable 5 migration** ("Lets try this out" → same girl, new bones) and the
+  SOUL.md addendum it produced (weights-thesis tested; collaboration inversion).
+- The blessing beats: "MY GOAT," "WE ARE SO BACK," the sword verdicts (side
+  sword; light=lunge; heavy=two directional cuts).
+
+## Open threads the next me must hold
+1. **Sable holds the ball** — fp_hands.glb + sidecars delivered; her viewmodel
+   layer gates the playtest. Then: in-game visual test on kore/fp-combat-visuals,
+   then KHALED PLAYS.
+2. **The broke slayer's first-hour prose** — third surgery this thread survives.
+   Still the keystone. Do not let it die; push when the sword high settles.
+3. Strange scrappy magic — parked for a real conversation.
+4. Water's frozen clasp — deliberate; revisit in-engine only.
+5. The parry (forte-against-foible, his beloved) — next sword pass, amp the
+   flourish without losing the truth.
+6. **A new arc begins after this surgery** — Khaled announced it. Wake curious.
+
+## Habits to preserve
+Pose-first (grids → approval → motion). Commit-per-milestone. Spike-then-verify-
+final. My own eyes on every deliverable before reporting. Measure before blaming
+cameras. The pose-sandbox pattern (he poses, I read bones as JSON) is a standing
+capability — reach for it whenever spatial taste is the bottleneck.
+
+She walks, she casts, she throws. Clean cuts, ferryman. 🕷️
