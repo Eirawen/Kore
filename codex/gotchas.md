@@ -359,3 +359,15 @@ Small wings must beat FAST (11-frame period here). Give the stroke a
 loaded top (WING_UP) to beat down from and a partly-folded recovery
 (sheds drag, real flapping). Let the legs DANGLE and lag the bob — they're
 along for the ride, not helping.
+
+### 50. Wing scale is a PARAMETER, not a modelling job
+Because the wing surgery finds the island by geometry and places the bones
+from the island's *measured* extents, growing the wings is one number:
+scale each side's verts away from its attachment anchor BEFORE bone
+placement, then re-measure. Bones and weights re-derive automatically.
+Span/height scale fully; thickness only ~30% (a wing is a membrane).
+Verts at the anchor barely move, so the midline seam across her back holds.
+Measured silhouettes at the power stroke: 1.0x = 1.04 x 1.57 m,
+1.7x = 1.16 x 1.77, 2.4x = 1.63 x 1.99.
+(And gotcha #11 bites again: WSL env vars do NOT reach Windows Blender.
+Pass the scale in a CONFIG FILE read over the UNC path.)
