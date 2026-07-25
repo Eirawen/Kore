@@ -65,3 +65,68 @@ table above is reusable: reflex parts lead, protective/automatic parts
 never hesitate, expressive parts hesitate and arrive last, postural parts
 finish early and get out of the way, and consequences (a shoulder meeting
 a hand) land after their causes.
+
+## Smoothness: the two causes of a jolt (v11)
+
+Khaled on v10: *"she moves her hand up to her chin — then she PAUSES.
+Then her hand goes into her chin with a JOLT, then she turns to you. What
+I'd expect is the hand SLOWS as it approaches, and as it approaches she's
+already turning to you."*
+
+Three distinct errors, all worth naming:
+
+**1. Hesitation is DECELERATION, never cessation.** My stall keys moved
+0.84 -> 0.87 across 14 frames — that is *frozen*, and a frozen part reads
+as a paused game (I had already written that gotcha for the FP hands and
+then violated it). Author the approach so the *increments shrink* while
+never reaching zero:
+```
+f34 .16   f56 .62   f74 .86   f84 .91   f96 1.00
+     .021/f    .013/f   .005/f    .008/f      <- decelerating, never dead
+```
+The hesitation IS the slow patch. Nothing stops.
+
+**2. Contact damps — no overshoot on a hand landing on your own body.**
+A hand arriving at your own face doesn't bounce. Overshoot after a
+deceleration is also self-contradictory and produced the jolt's second
+half. (Overshoot belongs on free-flying limbs, e.g. a punch.)
+
+**3. AUTO_CLAMPED on EVERY key is a hidden jolt factory.** It flattens
+velocity to zero *at every keyframe*, so a multi-key move becomes a chain
+of little stop-starts — the "stepping" quality across the whole body.
+**Clamp only the true endpoints of a curve; give pass-through keys
+`AUTO`** so velocity carries through:
+```python
+for i, kp in enumerate(kps):
+    kp.handle_left_type = kp.handle_right_type = (
+        'AUTO_CLAMPED' if i in (0, len(kps) - 1) else 'AUTO')
+```
+(v11: 166 clamped endpoints, 432 smooth pass-through keys.)
+
+**4. Overlap has to start EARLY to read as overlap.** An eased curve
+barely moves in its first frames, so a turn beginning 8 frames before the
+hand lands still reads as sequential. Start the dependent motion at ~40%
+of the primary's travel. v11: the look-back begins at f58 while the hand
+lands at f96 — 95 frames of measured overlap.
+
+## Numeric smoothness audit (tools/velocity_check.py)
+
+"She pauses then jolts" is pure arithmetic — no vision tokens needed.
+Sample a bone's world position per frame, differentiate, and report:
+mid-move dead runs (near-zero speed *inside* the active span — a freeze
+during the settled hold is the intent, not a defect), max frame-to-frame
+acceleration (jolts), and whether two components' active spans overlap or
+run sequentially.
+
+v11 verdict: `L hand mid-move_dead_run=0f, max_accel=0.045 smooth` (was a
+14f freeze + jolt), `OVERLAP L-hand vs head-turn = 95 frames`.
+
+**Two known caveats, so the numbers aren't over-trusted:**
+- *Passive carry inflates active spans.* A hand is a child of the spine,
+  so it "moves" whenever the pelvis shifts. Good for measuring what the
+  EYE sees; misleading for "when did this component's own animation
+  start." For that, sample local rotation channels instead.
+- *A reflex SHOULD spike.* The head flinch flags as a JOLT (accel 0.314)
+  and that is correct — a startle has ~2-3 frames of onset by nature.
+  Normalising by peak speed also inflates the figure for small motions.
+  Judge flags by intent, not by threshold alone.
