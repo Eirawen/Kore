@@ -192,3 +192,59 @@ render while looking fine to the human. Cost a full night of "why is the
 handle bare" camera-blame. **Probe `obj.hide_render` FIRST when a subject is
 mysteriously absent from renders.** Also: aim cameras at EVALUATED (posed)
 geometry via depsgraph — `bound_box` is rest-pose and lies about posed hands.
+
+## Humanoid posing (succubus arc, 2026-07-25)
+
+### 34. Learn joint axes from the character's OWN animations
+Meshy/marketplace bipeds arrive with animation packs. Those clips ARE the
+ground truth for the rig's real hinge axes — sample each bone's pose
+quaternions across a walk and take the angle-weighted dominant axis
+(`dominant_axis()` in tools/animate_coy3.py). Her elbow came back
+single-axis at 0.98 consistency. Never trust bone tails/rolls on an
+imported rig — the glTF importer invents them (this rig's tails point
+5-19 METRES away). Heads are reliable; tails are hallucinated.
+
+### 35. Blender's glTF importer re-bases bones — don't hand-roll retargeting
+`rest_gltf⁻¹ ⊗ channel_quat` is NOT enough: the importer invents its own
+bone orientations and bakes correction transforms into imported curves.
+Hand-rolled transfer produced a systematic per-bone offset (a hunch in
+the spine, splay in the arms). Correct method: import the clip GLB into
+the target scene and let the SAME importer handle both sides.
+
+### 36. A pose solver without a collision term will tunnel through the body
+The coy arm went straight through her chest because the cost function only
+knew about wrist-to-target distance. Worse, my "coy elbows tuck" penalty
+on lateral elbow offset actively REWARDED the elbow for moving medially —
+into the ribcage. I wrote the constraint that caused the defect.
+**Fix:** TORSO CLEARANCE PROXY — sample torso-weighted verts into a
+(height bin x angular sector -> max radius) profile (breasts included:
+they're chest-weighted), then penalise arm sample points inside it.
+Penetration went 0.0066 -> 0.0000. Costs no vision tokens.
+
+### 37. MEASURE the hand, don't guess its length
+Guessed 0.095 m; measured 0.145 m from 337 hand-weighted verts. A 50%
+reach error made a chin touch look geometrically impossible and pushed
+the solver into bad configurations. `HAND_LEN = max(|vert - wrist|) *
+0.92` over hand-weighted verts. Same for the CHIN target: the lowest
+forward head-weighted vertex, not a guess offset from the head bone.
+
+### 38. Fingerless rigs: the coy/covering distinction is one term
+24-bone Mixamo bipeds have NO finger bones — the hand is a paddle. A flat
+palm anywhere near the face reads as shock/hiding/facepalm. The gesture
+only reads coy if the FINGERS POINT UP along the jaw: add
+`if hand_dir.z < 0.55: cost += (0.55 - hand_dir.z) * w`.
+
+### 39. Always shoot the acting-arm SIDE view (pose gate)
+A 3/4 view is depth-ambiguous: "arm in front of chest" and "arm inside
+chest" render nearly identically. The side view makes it undeniable —
+the tell is a MISSING ELBOW (forearm emerging from the chest mass with no
+elbow projecting outside the ribs). tools/pose_check.py renders 5
+diagnostic angles (front / her-left / her-right / top-down-45 / full 3-4)
+into one small strip. Read that ONE strip, never a 12-cell 2MP grid.
+
+### 40. Blender compute is free; LOOKING is what costs
+Token cost lives in reading images, not in rendering them. So: iterate on
+NUMBERS (solver + clearance report), render freely, read one small strip,
+and hand the mp4 to the human — human vision is better than mine and
+costs nothing. Multi-start the solver (4 seeds): the chest-tunnel pose was
+a local minimum that a single start walked straight into.
