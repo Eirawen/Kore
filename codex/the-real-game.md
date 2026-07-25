@@ -101,3 +101,31 @@ intervention. If there exists demons, there exists divinity."
 
 "We are done being simple. We are done living within the symbolic language.
 Its time to be US."
+
+## Flight is a species trait — and she doesn't have it (2026-07-25)
+
+Came out of the hover animation. Kore built the flap with FLAP_LIFT set
+*below* break-even (`g * flap_period`), so the succubus sags on every beat
+and loses the fight with gravity — wings that can't quite carry her.
+Khaled's generalisation, which is the better idea: **some demons fly.
+Ours doesn't.**
+
+Why this is strong:
+- If everything winged flies, flight is scenery. If flight is what the
+  OTHER demons have, every airborne enemy becomes a reminder of what she
+  isn't. Characterisation delivered by the bestiary, not by dialogue.
+- It's the extraction theme in her body. She is a demon who was
+  shortchanged the one thing her species takes for granted — exactly like
+  a slayer whose wax failed after five days and whose earnings get
+  garnished. **The who's-there party is a party of people the world
+  skipped.** That's why they end up together, and it never needs saying
+  out loud.
+- Bigger wings make it BETTER, not worse: impressive equipment that fails
+  is more pathetic than obviously vestigial nubs.
+
+Mechanically it is one constant, so nothing is locked in:
+`FLAP_LIFT` vs `g * flap_period` (= 9.81 * 11/60 = **1.80 m/s** at an
+11-frame beat). Below it she sinks (1.52 = the shipped hover); above it she
+climbs (~2.1 = +0.3 m/s per beat). Same rig, same clip, same code — so
+flight can be a per-species value, or even a per-STATE one (grounded in
+corridors, airborne in open rooms; flightless until something changes).
