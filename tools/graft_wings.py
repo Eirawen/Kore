@@ -217,46 +217,67 @@ for side, sgn in (('L', 1), ('R', -1)):
 bpy.ops.object.mode_set(mode='OBJECT')
 bpy.context.view_layer.update()
 
-# ═══════════ weights: by span fraction, midline shared ═══════════
-for side, sd in SEG.items():
-    for nm in sd['names']:
-        if nm not in wing.vertex_groups:
-            wing.vertex_groups.new(name=nm)
+# ═══════════ split at the midline into two independent wings ═══════
+# bisect_plane cuts the 39 straddling faces exactly at the plane, so the
+# halves abut with no hole and no overlap.
+HALVES = {}
+for side, sgn in (('L', 1), ('R', -1)):
+    obj = wing.copy()
+    obj.data = wing.data.copy()
+    obj.name = 'Wings' + side
+    scene.collection.objects.link(obj)
+    omi = obj.matrix_world.inverted()
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+    bmesh.ops.bisect_plane(
+        bm, geom=geom, dist=1e-6,
+        plane_co=omi @ mount,
+        plane_no=(omi.to_3x3() @ Vector((sgn, 0, 0))).normalized(),
+        clear_inner=True, clear_outer=False)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    HALVES[side] = obj
+    print('SPLIT Wings%s -> %d verts' % (side, len(obj.data.vertices)))
+bpy.data.objects.remove(wing, do_unlink=True)
+bpy.context.view_layer.update()
 
 def smooth(t):
     t = min(1.0, max(0.0, t))
     return t * t * (3 - 2 * t)
 
-for v in wing.data.vertices:
-    p = wing.matrix_world @ v.co
-    dx = p.x - mount.x
-    for side, sd in SEG.items():
-        sgn, span_half = sd['sgn'], sd['span']
-        # how much of this vert belongs to THIS side: verts on the midline
-        # belong to both, which is what keeps the shared membrane intact
-        side_w = smooth((dx * sgn) / (span_half * 0.10) * 0.5 + 0.5)
-        if side_w < 1e-4:
-            continue
-        t = min(1.0, abs(dx) / span_half)
+for side, sd in SEG.items():
+    obj = HALVES[side]
+    for nm in sd['names']:
+        if nm not in obj.vertex_groups:
+            obj.vertex_groups.new(name=nm)
+    span_half = sd['span']
+    for v in obj.data.vertices:
+        p = obj.matrix_world @ v.co
+        t = min(1.0, abs(p.x - mount.x) / span_half)
         w_root = 1.0 - smooth((t - 0.10) / 0.38)
         w_tip = smooth((t - 0.52) / 0.40)
         w_mid = max(0.0, 1.0 - w_root - w_tip)
         for nm, w in zip(sd['names'], (w_root, w_mid, w_tip)):
-            if w * side_w > 1e-4:
-                wing.vertex_groups[nm].add([v.index], w * side_w, 'REPLACE')
+            if w > 1e-4:
+                obj.vertex_groups[nm].add([v.index], w, 'REPLACE')
 
-wing.parent = arm
-wing.matrix_parent_inverse = arm.matrix_world.inverted()
-md = wing.modifiers.new('Armature', 'ARMATURE')
-md.object = arm
 mat = bpy.data.materials.new('WingMat')
 mat.use_nodes = True
 mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.42, 0.20, 0.24, 1)
 mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.55
-wing.data.materials.clear()
-wing.data.materials.append(mat)
-print('GRAFTED wings: %d verts, %d bones, armature-bound'
-      % (len(wing.data.vertices), sum(len(s['names']) for s in SEG.values())))
+for side, obj in HALVES.items():
+    obj.parent = arm
+    obj.matrix_parent_inverse = arm.matrix_world.inverted()
+    md = obj.modifiers.new('Armature', 'ARMATURE')
+    md.object = arm
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+
+print('GRAFTED %d independent wings, %d verts total, %d bones'
+      % (len(HALVES), sum(len(o.data.vertices) for o in HALVES.values()),
+         sum(len(sd['names']) for sd in SEG.values())))
 
 # save for the animation scripts to pick up
 bpy.ops.wm.save_as_mainfile(
@@ -269,9 +290,14 @@ print('SAVED succubus_winged.blend')
 # animatable — the flap already drives these bones.
 SPREAD = cfg('spread', 40.0)
 SWEEP = cfg('sweep', 14.0)
+# now that the wings are independent they need never match exactly.
+# Perfect symmetry is the manufactured look; a few degrees of
+# difference reads as a living creature.
+ASYM = cfg('asym', 5.0)
 def spread_pose(amount=1.0):
     for side, sd in SEG.items():
         sgn = sd['sgn']
+        asym = 1.0 + (ASYM / 100.0 if side == 'R' else -ASYM / 100.0)
         for nm, k in zip(sd['names'], (1.0, 0.62, 0.30)):
             pb = arm.pose.bones.get(nm)
             if pb is None:
@@ -282,14 +308,14 @@ def spread_pose(amount=1.0):
             # +Y OPENS (probed: span 0.86 -> 1.37). The sign was inverted
             # before, which folded them across her head instead.
             pb.rotation_quaternion = (
-                Quaternion(ay, math.radians(SPREAD * k * amount * sgn))
-                @ Quaternion(az, math.radians(-SWEEP * k * amount * sgn)))
+                Quaternion(ay, math.radians(SPREAD * k * amount * sgn * asym))
+                @ Quaternion(az, math.radians(-SWEEP * k * amount * sgn * asym)))
     bpy.context.view_layer.update()
 
 # ═══════════ check render: 4 angles ═══════════
 deps = bpy.context.evaluated_depsgraph_get()
 lo, hi = Vector((1e9,) * 3), Vector((-1e9,) * 3)
-for o in (body, wing):
+for o in [body] + list(HALVES.values()):
     eo = o.evaluated_get(deps)
     for c in eo.bound_box:
         wc = eo.matrix_world @ Vector(c)

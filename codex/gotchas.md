@@ -374,9 +374,10 @@ Pass the scale in a CONFIG FILE read over the UNC path.)
 
 ### 51. Grafting a generated asset onto a rigged character
 Meshy wing pair -> her back. The pattern generalises to any prop/appendage:
-- **Probe islands first.** The membrane was ONE connected sheet spanning
-  BOTH wings, so splitting into left/right objects would have torn it.
-  Mount the pair as a single mesh and weight midline verts to BOTH roots.
+- **Probe islands first**, then MEASURE before declaring a constraint. I
+  claimed a shared membrane meant the wings couldn't be split. Khaled
+  pushed back; the measurement said he was right (see #53). Assertions
+  about geometry are cheap to test — test them.
 - **Keep it a SEPARATE mesh object sharing the armature.** Not joined into
   the body: no vertex-index disruption, no weight contamination, and it's
   how game characters are actually built (submeshes).
@@ -403,3 +404,29 @@ railgun's GUN_ROLL): measured span per axis/sign —
   Z+40: 0.793                Z-40: 1.177 (sweeps back, flattens depth)
 +Y opens; my authored sign was inverted, which folded the wings across her
 head. Z- is the secondary sweep-back.
+
+### 53. Measure a constraint before asserting it (the split that was fine)
+I told Khaled the wings couldn't be split into left/right because the
+membrane was one connected sheet and the seam would tear. He asked why,
+which is the correct response to an unmeasured claim. The topology probe:
+```
+straddle faces  39 of 4308  (0.9%)
+edges crossing  39 of 6484
+verts already ON x=0          17
+bridge z=[-0.500,-0.055]  = the bottom 44.5% of the asset
+```
+So the two wings are joined only by the V-notch at the BOTTOM CENTRE —
+which, once mounted, sits on her mid-back where her own torso occludes it.
+The concern was real in principle (coincident boundary verts diverge if the
+sides get different transforms) and negligible in this geometry.
+
+`bmesh.ops.bisect_plane(clear_inner=True)` per side cuts the straddling
+faces exactly at the plane: WingsL 1146v / WingsR 1143v, total 2289 (UP
+from 2217 — the cut adds boundary verts, which is the sign it worked).
+No dual-root midline weighting needed afterwards.
+
+**What splitting buys, all of which needs independent wings:** phase offset
+between beats (real flapping is never symmetric), differential angle for
+banking, an asymmetric rest pose (`ASYM`, a few degrees — perfect symmetry
+is the manufactured look), and a torn/damaged wing for a character who
+fights in dungeons.
