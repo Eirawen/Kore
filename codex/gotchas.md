@@ -248,3 +248,36 @@ NUMBERS (solver + clearance report), render freely, read one small strip,
 and hand the mp4 to the human — human vision is better than mine and
 costs nothing. Multi-start the solver (4 seeds): the chest-tunnel pose was
 a local minimum that a single start walked straight into.
+
+### 41. Coy is approach-avoidance — the body turns AWAY, the face comes BACK
+The single biggest miss in my first coy pass: I only tilted her head into
+her hand. No conflict = no flirtation. The gesture requires opposition —
+torso twisted away from the audience (Z on Hips/Spine chain), face yawed
+back toward them, chin tucked. Verified numerically: gaze·audience goes
+0.41 (flinch away) -> 0.90 (looked back). Supporting vocabulary that all
+reads: knees converged (uchimata — verify the sign by MEASURING the knee
+gap, don't guess it), spine curled forward (making herself small), the
+raised-arm shoulder lifted to MEET the hand (the bashful squeeze), and the
+idle arm given a job (crossing the body — an idle arm kills a pose).
+
+### 42. Head orientation: compute a LOOK-AT; and the conjugation that kills
+### stale rest frames
+Guessed head eulers hid her face. Instead build a desired facing
+(`gaze_dir(yaw_vs_audience, pitch_down)`) and solve exactly:
+`D = current_fwd.rotation_difference(desired)`. To apply an ARMATURE-space
+rotation to a bone whose ancestors are already posed:
+    pose = M0⁻¹ · D · M0    (M0 = pb.matrix.to_quaternion() at identity pose)
+This uses the bone's LIVE world matrix, so it never goes stale the way
+`matrix_local` (rest frame) does — that staleness was the v1/v2 body
+horror. Split the turn neck/head (~38/62) so it reads as a curve, not a
+snapped-on head. Then roll about the final forward for the tilt.
+**And: pitch down ~15 deg, not 26.** At 26 the hair and tilt hide her
+face entirely; coy needs the face VISIBLE. Buy the shyness with ROLL
+(head tilt), which costs you nothing.
+
+### 43. One-sided constraints get maximized — use BANDS
+`if hand_dir.z < 0.55: penalize` let the solver stand the paddle straight
+up (0.92) into a wall over her mouth. A floor is not a target. Bands:
+`(0.42, 0.66)` penalizes both directions and lands the hand angled ALONG
+the jaw. General rule: any constraint you write as an inequality, ask what
+the solver does if it maximizes that term — it will.
