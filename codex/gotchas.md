@@ -430,3 +430,31 @@ between beats (real flapping is never symmetric), differential angle for
 banking, an asymmetric rest pose (`ASYM`, a few degrees — perfect symmetry
 is the manufactured look), and a torn/damaged wing for a character who
 fights in dungeons.
+
+### 54. SWINGING a bone chain is not EXTENDING a wing (measure height, not just span)
+Khaled: *"I hypothesize you're rotating around the wrong axis somehow. When
+you rotate the wings you're rotating them vertically, so to speak, rather
+than extending them out."* He was right, and the tell was a metric I wasn't
+watching — **wing HEIGHT**:
+
+| spread strategy | span | wing height |
+|---|---|---|
+| furled | 1.060 | 1.062 |
+| A: same-sign +Y on all 3 bones (swing) | 1.695 | **0.481** |
+| B: aim each bone outward (UNFOLD) | 1.670 | **1.058** |
+| C: rotate about vertical (sweep only) | 1.411 | 1.062 |
+
+A and B reach the SAME span. A gets there by tipping the wing over into a
+horizontal plane — it gains width by **lying down**, losing 55% of its
+vertical presence, and reads as a flat cape. Applying one rotation
+direction to a head-to-tail chain swings it like a rigid plank.
+
+**A real wing spreads by UNFOLDING its joints.** Use `aim_bone` (the
+`M0⁻¹·D·M0` live-matrix conjugation) to point every bone in the chain along
+one outward direction — that STRAIGHTENS the furled arc, so span grows out
+of the chain's own length and the membrane stays standing. Apply elevation
+AFTER extension, at the root only: that's the order a real wing does it in.
+
+**Lesson beyond wings: when a transform is supposed to EXTEND something,
+audit a dimension it should PRESERVE.** Span alone said A worked. Span plus
+height said A was flattening. One extra measured number caught it.

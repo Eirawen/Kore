@@ -294,23 +294,63 @@ SWEEP = cfg('sweep', 14.0)
 # Perfect symmetry is the manufactured look; a few degrees of
 # difference reads as a living creature.
 ASYM = cfg('asym', 5.0)
+def aim_bone(pb, want_world):
+    """Point a bone's axis along want_world using its LIVE matrix
+    (posed parents included): pose = M0^-1 . D . M0."""
+    R = mw.to_3x3()
+    Ri = R.inverted()
+    pb.rotation_quaternion = Quaternion()
+    bpy.context.view_layer.update()
+    cur = (Ri @ ((mw @ pb.tail) - (mw @ pb.head))).normalized()
+    des = (Ri @ Vector(want_world)).normalized()
+    M0 = pb.matrix.to_quaternion()
+    pb.rotation_quaternion = M0.inverted() @ cur.rotation_difference(des) @ M0
+    bpy.context.view_layer.update()
+
+
 def spread_pose(amount=1.0):
+    """UNFOLD, don't swing.
+
+    Khaled spotted that the wings were "rotating vertically rather than
+    extending out", and the measurement proved him right. Applying the same
+    +Y rotation to all three bones swings the chain like a rigid plank:
+        swing +Y40 -> span 1.695 but wing HEIGHT collapses 1.062 -> 0.481
+    The wing gains width by lying down. Instead, AIM each bone along one
+    outward direction, which STRAIGHTENS the furled arc:
+        unfold      -> span 1.670 (same width) and height stays 1.058
+    Nearly identical span, full vertical presence kept. A real wing spreads
+    by unfolding its joints, not by tipping over.
+    """
     for side, sd in SEG.items():
         sgn = sd['sgn']
         asym = 1.0 + (ASYM / 100.0 if side == 'R' else -ASYM / 100.0)
-        for nm, k in zip(sd['names'], (1.0, 0.62, 0.30)):
+        if amount <= 1e-4:
+            for nm in sd['names']:
+                pb = arm.pose.bones.get(nm)
+                if pb is not None:
+                    pb.rotation_mode = 'QUATERNION'
+                    pb.rotation_quaternion = Quaternion()
+            continue
+        out = Vector((sgn, SWEEP / 100.0 * asym, 0.10)).normalized()
+        for nm in sd['names']:
             pb = arm.pose.bones.get(nm)
             if pb is None:
                 continue
-            m = pb.bone.matrix_local.to_3x3().inverted()
+            pb.rotation_mode = 'QUATERNION'
+            rest = Quaternion()
+            aim_bone(pb, out)
+            full = pb.rotation_quaternion.copy()
+            pb.rotation_quaternion = rest.slerp(full, amount)
+        # elevation is applied AFTER extension, at the root only — the
+        # order a real wing does it in
+        root = arm.pose.bones.get(sd['names'][0])
+        if root is not None and abs(SPREAD) > 1e-6:
+            m = root.bone.matrix_local.to_3x3().inverted()
             ay = (m @ Vector((0, 1, 0))).normalized()
-            az = (m @ Vector((0, 0, 1))).normalized()
-            # +Y OPENS (probed: span 0.86 -> 1.37). The sign was inverted
-            # before, which folded them across her head instead.
-            pb.rotation_quaternion = (
-                Quaternion(ay, math.radians(SPREAD * k * amount * sgn * asym))
-                @ Quaternion(az, math.radians(-SWEEP * k * amount * sgn * asym)))
+            root.rotation_quaternion = (root.rotation_quaternion
+                @ Quaternion(ay, math.radians(SPREAD * 0.35 * amount * sgn * asym)))
     bpy.context.view_layer.update()
+
 
 # ═══════════ check render: 4 angles ═══════════
 deps = bpy.context.evaluated_depsgraph_get()
