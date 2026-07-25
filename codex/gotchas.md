@@ -281,3 +281,54 @@ up (0.92) into a wall over her mouth. A floor is not a target. Bands:
 `(0.42, 0.66)` penalizes both directions and lands the hand angled ALONG
 the jaw. General rule: any constraint you write as an inequality, ask what
 the solver does if it maximizes that term — it will.
+
+## Jump / locomotion (succubus, 2026-07-25)
+
+### 44. Meshy auto-rigs weight WINGS to the nearest LIMB
+Her wings were one 330-vert island weighted to `LeftArm=118, RightArm=115`
+— so every arm gesture dragged her wings around (that flat "sail" in the
+early coy renders was a wing being hauled by an arm). Probe for it: find
+connected islands (bmesh flood fill), then look for one spanning both x
+signs at shoulder height. **Fix:** add bones parented to `Spine`, re-weight
+the island to them exclusively (`vg.remove()` from every old group first),
+2 bones per wing with a smoothstep falloff along the span. Payoff beyond
+posing: rigged wings can be driven by the engine's SPRING BONE system as
+free secondary motion, forever.
+
+### 45. EXACT analytic IK beats a solver, and more DOF makes search WORSE
+Foot-planting by coordinate descent: 3 fixed axes -> 6cm floor sink;
+5 DOF -> 2cm; **7 DOF -> 8cm.** Adding freedom gave the local optimizer a
+worse basin to fall into. A leg is a TWO-BONE CHAIN, so solve it in closed
+form and get zero residual with no search:
+1. `d = |ankle_target - hip|`, clamp to `[|a-b|, a+b]`
+2. law of cosines for the hip angle: `cos = (a²+d²-b²)/(2ad)`
+3. knee = `hip + a*(cos(al)*along + sin(al)*perp)`, where `perp` is the
+   POLE direction (she faces -Y, so the knee leads -Y) orthogonalised
+   against `along`
+4. aim each bone at its target direction with the conjugation
+   `pose = M0⁻¹ · D · M0` off the bone's LIVE matrix
+Result: `foot_error 0.0000m`, floor penetration 6cm -> **1.5mm**.
+Reusable for every crouch, landing, stair and walk this rig will ever do.
+
+### 46. Flat foot vs TOE-OFF are different IK problems
+Flat contact: target the ankle AND the toe (over-determined on purpose —
+it pins the foot's orientation too). Toe-off: target the toe ONLY and park
+the ankle one foot-length up-and-behind it (`toe + FOOT_LEN *
+normalize((0, 0.32, 1))`) — that IS plantar flexion, and it's what makes a
+jump read as a push instead of a levitation. Toes are last to leave the
+ground and first to touch it.
+
+### 47. The root curve must PASS THROUGH the height each plant was solved at
+I solved the toe-off plant at hips −6cm but the root curve was at −3.4cm
+on that frame, so the foot was planted for a pose she wasn't in (4cm
+sink). Any IK-solved contact pose needs a matching root keyframe at the
+exact solve height.
+
+### 48. Flight height is COMPUTED, not eased
+`z(t) = v0*t − g*t²/2`, `v0 = sqrt(2*g*h)`, keyed every 2 frames with AUTO
+handles. A symmetric bezier ease floats at the apex; real gravity gives
+fast-rise / hang / fast-fall for free. Verified by measuring the mesh's
+lowest vertex per frame: 0.000 on the ground -> **+0.468 at apex** (41cm of
+hip rise for a requested 34cm ballistic + 7cm takeoff extension). Always
+audit "does she actually leave the floor" against mesh geometry, not the
+root value.
