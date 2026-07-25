@@ -332,3 +332,30 @@ lowest vertex per frame: 0.000 on the ground -> **+0.468 at apex** (41cm of
 hip rise for a requested 34cm ballistic + 7cm takeoff extension). Always
 audit "does she actually leave the floor" against mesh geometry, not the
 root value.
+
+### 49. A hover should be SIMULATED, and the sag between beats is the point
+A smooth hover reads as levitation. A hover that SAGS BETWEEN BEATS reads
+as WORK — each downstroke arrests the fall and buys back altitude, gravity
+takes it during the recovery stroke. So integrate instead of keying:
+```
+v -= g*dt each step;  v += FLAP_LIFT at each downstroke
+```
+Set `FLAP_LIFT` deliberately BELOW `g * flap_period` (1.52 vs 1.80 m/s) and
+she loses a little every beat — barely winning, then losing. The measured
+profile is the characterisation:
+```
+rise  7 -> 21.5 -> 31.6 -> 37.4 -> 38.8      (ballistic, decelerating)
+flap1 43.5 -> 46.3 -> 44.8    up then SAG
+flap2 49.0 -> 48.9 -> 46.9    up then SAG
+flap3 48.2 -> 45.2 -> 42.8    up then SAG
+fall  41.2 -> 35.1 -> 24.8 -> 10.0           (gravity wins)
+```
+Two things fall out free: **CAUSALITY** — fire the impulse mid-downstroke
+(flap_f + 2) so she starts rising AFTER the wings move; force leads
+position, which is what makes the lift read as *caused by* the flapping.
+And the **LANDING FRAME becomes an OUTPUT** of the sim, not a number you
+pick — then key the landing poses at whatever frame it returns.
+Small wings must beat FAST (11-frame period here). Give the stroke a
+loaded top (WING_UP) to beat down from and a partly-folded recovery
+(sheds drag, real flapping). Let the legs DANGLE and lag the bob — they're
+along for the ride, not helping.
