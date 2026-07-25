@@ -1,0 +1,17 @@
+{
+ "level": 1,
+ "labels": [
+  "charge 0.25s — crackle",
+  "charge 0.48s — coin hangtime",
+  "FIRE +8ms — mid-draw",
+  "draw +25ms",
+  "lance fresh +42ms",
+  "afterglow +0.11s",
+  "afterglow +0.17s",
+  "afterglow +0.26s",
+  "afterglow +0.34s",
+  "afterglow +0.42s — crumble",
+  "afterglow +0.50s — dashes",
+  "gone +0.67s — smoke only"
+ ]
+}
