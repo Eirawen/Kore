@@ -371,3 +371,35 @@ Measured silhouettes at the power stroke: 1.0x = 1.04 x 1.57 m,
 1.7x = 1.16 x 1.77, 2.4x = 1.63 x 1.99.
 (And gotcha #11 bites again: WSL env vars do NOT reach Windows Blender.
 Pass the scale in a CONFIG FILE read over the UNC path.)
+
+### 51. Grafting a generated asset onto a rigged character
+Meshy wing pair -> her back. The pattern generalises to any prop/appendage:
+- **Probe islands first.** The membrane was ONE connected sheet spanning
+  BOTH wings, so splitting into left/right objects would have torn it.
+  Mount the pair as a single mesh and weight midline verts to BOTH roots.
+- **Keep it a SEPARATE mesh object sharing the armature.** Not joined into
+  the body: no vertex-index disruption, no weight contamination, and it's
+  how game characters are actually built (submeshes).
+- **Anchor-relative transform.** Find the asset's attachment zone (verts
+  within ~8% of the span of its midline), then scale/rotate about THAT
+  point and translate the anchor onto the target bone. The attachment
+  never drifts as you re-scale.
+- **Derive bones from the mounted geometry**, sampling the asset's own
+  shape at span fractions (0.42 / 0.78 / 1.0) so the chain follows the
+  membrane's arc instead of a straight line.
+- Attach at the anatomically right place: bat wings mount at the SCAPULA,
+  lower than the shoulder joint.
+
+### 52. Generated wings arrive FURLED — spread is a POSE, not geometry
+The asset's bbox was 1:1 (as tall as wide) because the wings were
+generated raised/furled, not spread. Scaling for span made them tower
+above her head; scaling for height made them narrow. Do NOT fix this by
+non-uniform scaling (it distorts the membrane) — **rig it furled and open
+it with the root bones.** The spread then costs nothing and is animatable,
+which the flap needs anyway.
+And probe the opening axis rather than guessing it (same method as the
+railgun's GUN_ROLL): measured span per axis/sign —
+  X+-40: 0.860 (no change)   Y+40: **1.373**   Y-40: 0.919
+  Z+40: 0.793                Z-40: 1.177 (sweeps back, flattens depth)
++Y opens; my authored sign was inverted, which folded the wings across her
+head. Z- is the secondary sweep-back.
