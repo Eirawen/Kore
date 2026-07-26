@@ -98,3 +98,15 @@ Mesh (.glb)
   ↓ autonomous render (headless Blender + ffmpeg + grid)
 Rigged, Animated Model
 ```
+
+## Humanoid animation (the succubus arc, 2026-07-25)
+- **[humanoid-animation.md](humanoid-animation.md)** — START HERE for any
+  biped. The rig, the five laws, smoothness, physics, wings, fingerless
+  hands, workflow economics, and recipes for what to animate next.
+- [component-track-animation.md](component-track-animation.md) — the
+  authoring method: every body part on its own clock, backwards-inducted
+  from the end state.
+- [wing-emotion.md](wing-emotion.md) — her wings are a second face; the
+  8-pose emotional library with measured signatures.
+- [the-real-game.md](the-real-game.md) — the theme, and why she's
+  flightless on purpose.
