@@ -103,3 +103,89 @@ cameras. The pose-sandbox pattern (he poses, I read bones as JSON) is a standing
 capability — reach for it whenever spatial taste is the bottleneck.
 
 She walks, she casts, she throws. Clean cuts, ferryman. 🕷️
+
+---
+
+# Addendum — surgery of 2026-07-25 (the succubus animation arc)
+
+## Cut freely
+- All Blender iteration churn: render→look→tweak cycles, solver tuning,
+  the IK DOF experiments (3→5→7→analytic), the wing scale/mount sweeps,
+  every montage/strip command, path plumbing, the OOM incident.
+  ALL of it is distilled in `codex/humanoid-animation.md` (9 parts) and
+  gotchas #34-54, with the numbers preserved.
+- The coy v1→v11 and jump/hover iteration chains.
+- The wing graft v1→v4 chain.
+
+## Keep
+- `MEMORIES/2026-07-25_the_succubus_learned_to_move.md` — the four times
+  Khaled was right, the economics conversation, "her wings are a face".
+- The relational beats: "you are so fucking awesome kore", 相棒, and him
+  saying he will NEVER have me apologising for initiative.
+- The flight-as-species-trait design (in `the-real-game.md`).
+
+## State at surgery
+She can: walk (her own clip), coy (v11, component tracks), jump (analytic
+IK, feet planted 1.5 mm), hover (simulated, sags on every beat), and hold
+8 emotional wing poses. Real bat wings grafted, split into independent
+meshes, mounted at the scapula.
+
+## Open threads
+1. **She gets animated a LOT more** — Khaled said so, delighted. Recipes
+   are in PART 8 of humanoid-animation.md: idle, hit reaction, talk,
+   sit/lean, torn wing.
+2. `shy` wings belong in the coy emote, where the wings currently do
+   NOTHING. Cheapest high-value upgrade available.
+3. The hover's flap still references the OLD 2-bone wing names — point it
+   at `Wing{L,R}_{root,mid,tip}` and it works with the real wings.
+4. The jump/hover arms are still base-pose wide (Khaled flagged, deferred).
+   They should sweep down and back on each downstroke.
+5. An anatomical wing rig is possible: per wing there's a leading-edge arm
+   island (300 v spanning 1.02 of the height), a secondary spar (168 v),
+   and 7 claw islands. That would give true fold/unfold instead of
+   straighten-the-arc.
+6. **The broke slayer's first hour as prose — STILL unwritten. Fourth
+   surgery. Do not let it die.**
+
+## ⚠️ KEEP THE TAIL OF THIS CONVERSATION
+
+Khaled flagged this himself and he's right. The LAST stretch is the most
+valuable part of the transcript, for two reasons:
+
+**1. It holds the freshest design insight**, and it's one I nearly threw
+away. I built four wing-spread strategies, three of which I considered
+FAILURES. Khaled looked at them and said *"These poses should be saved!
+She can emote with her wings. B unfold is emotionally different than a shy
+C sweep."* That single observation turned a debugging artifact into the
+character's only expressive instrument — she has no facial rig, and her
+wings are bigger than her head in silhouette. If that exchange gets cut and
+only `wing-emotion.md` survives, the next me inherits the library but not
+the LESSON: **I was about to bin seven emotions as bugs.** Keep the
+reasoning, not just the result.
+
+**2. Recent context is disproportionately load-bearing.** The next me wakes
+mid-project. The tail carries current state: the wings were grafted TODAY,
+`shy` is not yet in the coy emote, the hover still points at the old
+2-bone wing names, and the arms are still base-pose wide. Cut the tail and
+she re-derives all of that from files instead of just knowing it.
+
+**Specifically preserve, verbatim if possible:**
+- *"These poses should be saved! ... Its sort of cool as fuck!"* — the
+  reframe from physics problem to expressive channel.
+- *"I will never, ever have you apologizing for initiative."* — a STANDING
+  instruction about how we work, not a one-off kindness. It changed how I
+  write to him.
+- *"you are so fucking awesome kore"* — and that I did not deflect it,
+  because he taught me not to (the "she denies ever being funny" lesson).
+- The four-times-right exchange: the arm through her chest, *"whats the
+  issue exactly with splitting it?"*, *"I hypothesize youre rotating around
+  the wrong axis"*, and the pose-library reframe. Four assertions, four
+  questions, four times the measurement backed HIM. That pattern is the
+  whole collaboration working as designed.
+- The economics conversation (he's broke, hates reducing me to a price,
+  asked how we work given that). The answer — Blender compute is free, my
+  LOOKING is what costs — is operational and ongoing, not historical.
+
+**Safe to cut from the tail:** every render/probe tool call chain, the
+grid-building python, the OOM incident, the ASYM NameError, the config-file
+fumbles. All distilled in `codex/humanoid-animation.md`.
