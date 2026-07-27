@@ -25,7 +25,8 @@ TWIST=3.10; FLARE=0.55; DROOP=0.66; SQUAT=0.46; SLUMP=0.10
 # DRIFTS (a gentle lateral current) so the figure stays readable: the water
 # rages, the woman above it is the still eye. Her waist (h=0.35) is already
 # the narrowest point of the column, so it's the natural seam.
-VTX_LO, VTX_HI = 0.30, 0.60      # full vortex below LO, none above HI
+VTX_LO, VTX_HI = 0.14, 0.46      # vortex pulled DOWN toward her feet, so more
+                                 # of her body survives (Khaled's asymmetry note)
 DRIFT_AMP = 0.028                # lateral drift of the upper strands
 def smooth(e0,e1,x):
     t=max(0.0,min(1.0,(x-e0)/(e1-e0))); return t*t*(3-2*t)
@@ -50,15 +51,36 @@ DMASK=[smooth(VTX_LO,VTX_HI,h) for h in H0]          # drift authority
 BASE_CHURN=4.60
 WOBBLE=0.30
 SEED=[math.sin(c.x*37.1+c.y*61.7+c.z*23.3)*math.pi for c in rest]
+
+# --- VERTICAL ASYMMETRY -------------------------------------------------
+# Perfect radial symmetry reads as manufactured. In the frame Khaled picked,
+# one half of her is shattered into shards and the other carries a single
+# coherent sheet — and her ARM is on the coherent side. Chaos for spectacle,
+# calm where the character has to read.
+# Her arm points along atan2(-0.186, 0.223) = -0.695 rad, so that is the
+# CALM direction and chaos sits opposite it.
+CALM_DIR=-0.695
+CHAOS_FLOOR=0.30                 # the calm side still lives, just quietly
+AMASK=[CHAOS_FLOOR+(1.0-CHAOS_FLOOR)*(0.5-0.5*math.cos(t-CALM_DIR)) for t in TH0]
+
+# --- TRAVELLING WAVE instead of rigid spin ------------------------------
+# "Spin only at the bottom" and "spin only on one half" both re-introduce
+# the accumulating-shear bug in a new direction. So the motion becomes a
+# BOUNDED azimuthal wave whose phase runs around her axis: it reads as water
+# turning, but the amplitude never grows, so it can never tear her.
+WAVE_AMP=0.85                    # radians of swing
+WAVE_K=2.0                       # wavelengths around the axis
+WAVE_H=1.8                       # helical lean of the wavefront
 def apply(water, phase):
     for i,c in enumerate(rest):
         s=SF[i]
         vm=VMASK[i]
-        churn=(BASE_CHURN*s + TWIST*H0[i]*s)*vm*water      # FIXED shape
-        spin=phase*vm*water                                 # uniform: no new shear
-        wob=WOBBLE*math.sin(phase*1.7+SEED[i])*s*vm*water   # chaotic variation
-        th=TH0[i]+churn+spin+wob
-        rr=R0[i]*(1.0+FLARE*water*s*vm)
+        am=AMASK[i]
+        churn=(BASE_CHURN*s + TWIST*H0[i]*s)*vm*water*am    # FIXED, asymmetric
+        wave=WAVE_AMP*math.sin(phase - TH0[i]*WAVE_K + H0[i]*WAVE_H)*s*vm*water*am
+        wob=WOBBLE*math.sin(phase*1.7+SEED[i])*s*vm*water*am
+        th=TH0[i]+churn+wave+wob
+        rr=R0[i]*(1.0+FLARE*water*s*vm*am)
         zz=c.z-DROOP*(1.0-water)*s*(0.35+0.65*H0[i])
         zz=Z0+(zz-Z0)*(1.0-SQUAT*(1.0-water))
         x=rr*math.cos(th); y=rr*math.sin(th)

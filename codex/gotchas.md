@@ -458,3 +458,35 @@ AFTER extension, at the root only: that's the order a real wing does it in.
 **Lesson beyond wings: when a transform is supposed to EXTEND something,
 audit a dimension it should PRESERVE.** Span alone said A worked. Span plus
 height said A was flattening. One extra measured number caught it.
+
+### 55. An idle must be true at EVERY frame — never a transformation
+A looping animation has no beginning, so any clip that travels from state A
+to state B reads as a repeating *event*, not an idle. The water elemental's
+first vortex went from intact legs (phase 0) to shredded (phase 3/4) and
+back forever — the player watches her legs dissolve and regrow on loop.
+**Fix:** separate the SHAPE from the MOTION. Bake the characteristic
+deformation as a fixed offset that is always on (she IS a vortex), then
+animate only bounded variation on top of it.
+
+### 56. Accumulating rotation shears a mesh apart; use a travelling wave
+Any rotation whose magnitude varies across space AND grows with time
+generates shear that increases without bound. `theta += phase * f(position)`
+will always tear geometry, whether f varies by radius ("spin the strands"),
+by height ("spin only at the bottom"), or by angle ("spin only one half").
+Real fluid escapes this because it continuously advects; a fixed-topology
+mesh cannot.
+**Fix:** a bounded azimuthal wave — `theta += A * sin(phase - theta0*k +
+h*p)`. It reads as water turning, but amplitude is capped by A, so it can
+never accumulate. Bonus: a rigid spin also ROTATES any deliberate asymmetry
+away from where you placed it (the calm zone orbits off the character's arm
+within a second). A travelling wave keeps the asymmetry anchored.
+
+### 57. Weight diffusion beats per-vertex nearest-bone assignment
+Hard-partitioning verts to bone sets (trunk->column bones, arm->arm bones)
+creates a weight CLIFF at every seam: two verts sharing an edge get disjoint
+weights and the edge stretches without limit (measured 61x on the water
+elemental). **Fix:** initial inverse-square weights over the K nearest
+bones, then diffuse over the mesh graph (`w = 0.45*w + 0.55*mean(neighbours)`,
+~12 iterations). Enforces continuity across every seam automatically.
+1-2 bones/vert -> 4.79, worst edge ratio 61.38 -> 3.80, and sway went to
+ZERO bad edges. Audit with edge-length ratio vs rest; it costs no vision.
