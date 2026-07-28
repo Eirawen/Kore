@@ -43,6 +43,30 @@ def bend(name, axis, deg):
     pb.rotation_quaternion=pb.rotation_quaternion@Quaternion(a, math.radians(deg))
     upd()
 
+def slosh(lean, orbit, c, t):
+    """THE BASE IS NOT A STAND.
+
+    Khaled: "she reminds me of a figurine on a stand, that bobbles around."
+    Exactly right, and it was structural: every bend was weighted
+    0.25+0.75*height, so the top swung while col0 (which carries the POOL)
+    barely moved. Fixed stand, wobbling figure — a bobblehead.
+
+    The conceptual error: I was animating a woman STANDING ON a base. The
+    pool is not furniture, it is the heaviest part of her BODY. In water the
+    mass leads from the BOTTOM — a wave is driven by what is underneath, not
+    by the tip. So the base must slosh: shift with the motion, spread under
+    load, and lag behind the direction change.
+    """
+    # the whole mass SHIFTS — water does not pivot about a fixed foot
+    ao.location.x += -0.055*math.radians(orbit)*14.0*c
+    ao.location.y +=  0.045*math.radians(lean)*10.0*c
+    # and the lowest segments carry REAL motion, lagged behind the top
+    lag = math.sin(t*math.tau - 0.9)
+    bend('col0',(1,0,0), lean*0.55 + 3.2*lag*c)
+    bend('col0',(0,1,0), orbit*0.65 - 2.6*lag*c)
+    bend('col1',(1,0,0), lean*0.70 + 2.2*lag*c)
+    bend('col1',(0,1,0), orbit*0.78 - 1.8*lag*c)
+
 def key(names, f):
     for nm in names:
         ao.pose.bones[nm].keyframe_insert('rotation_quaternion', frame=f)
@@ -106,10 +130,11 @@ def clip_wave_rise():
         clear()
         aim('arm0', ad); aim('arm1', ad*0.9+UP*0.25); aim('arm_hand', ad*0.7+UP*0.5)
         for i,nm in enumerate(COL):
-            bend(nm,(0,1,0), lean*(0.35+0.65*i/6.0))
+            bend(nm,(0,1,0), lean*(0.60+0.40*i/6.0))
         for i,nm in enumerate(HAIR):
             bend(nm,(0,1,0), hl*(0.4+0.6*i/3.0))
-        key(ARM+COL+HAIR, f)
+        slosh(lean, 0.0, 1.0, f/84.0)
+        key(ARM+COL+HAIR, f); key_root(f)
     smooth_handles(a)
     events['atk_wave_rise']={'duration_f':84,'fps':60,
         'events':{'gather':22,'release':42,'impact_window':[42,58]},
@@ -267,54 +292,82 @@ print('SAVED %d clips'%len(made))
 #      player who learns one reads the other instantly.
 # ══════════════════════════════════════════════════════════════════
 def clip_torrent(low):
+    """The torrents, v2.
+
+    v1's floor version read as "a model that's falling over" (Khaled) —
+    because a humanoid bending 30 degrees forward MEANS toppling; that is
+    what a body doing that signifies. Same family as the snowmobile: I posed
+    a person instead of behaving like water.
+
+    SHE IS WATER. She does not BEND DOWN to reach the floor, she SINKS —
+    height collapses, base spreads, and one arm traces a circle on the
+    stone. And that makes the pair properly mirrored, in the squash-stretch
+    vocabulary that fixed waveform:
+
+        FLOOR   : sink and spread (z 0.55, xy 1.30)
+        CEILING : rise and narrow  (z 1.35, xy 0.88)
+
+    The CIRCLE is the telegraph and the whole upper body orbits with the
+    arm, because an arm circling inside that silhouette is invisible.
+    """
     name='atk_torrent_floor' if low else 'atk_torrent_ceiling'
     a=new_action(name); clear()
     N=108
+    SZ, SXY = (0.55, 1.30) if low else (1.35, 0.88)
+    BASE_Z=-0.5
     for f in range(0,N+1,3):
         clear(); t=f/float(N)
-        if t<0.22:      ph, u = 'raise', t/0.22
-        elif t<0.72:    ph, u = 'circle', (t-0.22)/0.50
-        elif t<0.80:    ph, u = 'snap',  (t-0.72)/0.08
-        else:           ph, u = 'recover',(t-0.80)/0.20
-        base = Vector((0.35,-0.30, -0.80 if low else 0.92)).normalized()
-        # SIGN: negative X-bend pitches her FORWARD (verified in render).
-        # Reaching for the ceiling must arch her BACK; tracing the floor
-        # must stoop her FORWARD. v1 had these inverted.
-        stoop = (-30.0 if low else 20.0)
+        if t<0.22:      ph,u='raise',   t/0.22
+        elif t<0.72:    ph,u='circle',  (t-0.22)/0.50
+        elif t<0.80:    ph,u='snap',    (t-0.72)/0.08
+        else:           ph,u='recover', (t-0.80)/0.20
+        # commit envelope: how far into the sink/rise she is
+        if ph=='raise':      c=u*u*(3-2*u)
+        elif ph=='circle':   c=1.0
+        elif ph=='snap':     c=1.0
+        else:                c=1.0-u*u*(3-2*u)
+
+        sz  = 1.0+(SZ-1.0)*c
+        sxy = 1.0+(SXY-1.0)*c
+        ao.scale=(sxy, sxy, sz)
+        ao.location=(0.0, 0.0, BASE_Z*(1.0-sz))
+
+        base=Vector((0.35,-0.30, -0.80 if low else 0.92)).normalized()
+        # a gentle settle, NOT a topple — the sink does the work now
+        stoop=(-9.0 if low else 7.0)
         orbit=0.0
         if ph=='raise':
-            k=u*u*(3-2*u)
-            d=Vector((0.75,-0.55,-0.10)).lerp(base,k); lean=stoop*k
+            k=u*u*(3-2*u); d=Vector((0.75,-0.55,-0.10)).lerp(base,k); lean=stoop*k
         elif ph=='circle':
-            ang=u*2.0*math.tau                        # two full loops
-            r=0.42
-            d=(base + Vector((math.cos(ang)*r, math.sin(ang)*r*0.6, 0))).normalized()
-            # THE WHOLE UPPER BODY ORBITS WITH THE ARM. An arm circling
-            # inside that silhouette is invisible (proved by v1: all a viewer
-            # read was a stoop). Making the column trace the same circle
-            # turns the telegraph into a MOVING MASS, which reads at any
-            # distance — the body sells it, the arm aims it.
-            lean=stoop + 14.0*math.sin(ang)
-            orbit=11.0*math.cos(ang)
+            ang=u*2.0*math.tau; r=0.42
+            d=(base+Vector((math.cos(ang)*r, math.sin(ang)*r*0.6, 0))).normalized()
+            lean=stoop+9.0*math.sin(ang)
+            orbit=13.0*math.cos(ang)      # the telegraph, felt through the body
         elif ph=='snap':
             d=Vector((0.30,-0.42,-1.0 if low else 1.0)).normalized()
-            lean=stoop + (-26.0 if low else 26.0)*u   # whole body punctuates
-            orbit=0.0
+            lean=stoop+(-14.0 if low else 14.0)*u
         else:
-            k=u*u*(3-2*u)
-            d=base.lerp(Vector((0.75,-0.55,-0.10)),k); lean=stoop*(1-k)
-        aim('arm0', d); aim('arm1', d); aim('arm_hand', d)
+            k=u*u*(3-2*u); d=base.lerp(Vector((0.75,-0.55,-0.10)),k); lean=stoop*(1-k)
+
+        aim('arm0',d); aim('arm1',d); aim('arm_hand',d)
+        # weight now runs 0.55 -> 1.0 instead of 0.25 -> 1.0: the base is
+        # part of her body, not a plinth she stands on
         for i,nm in enumerate(COL):
-            w=0.25+0.75*i/6.0
+            w=0.55+0.45*i/6.0
             bend(nm,(1,0,0), lean*w)
-            bend(nm,(0,1,0), orbit*w)      # the orbit, felt through the column
+            bend(nm,(0,1,0), orbit*w)
         for i,nm in enumerate(HAIR):
             bend(nm,(1,0,0), -lean*0.5); bend(nm,(0,1,0), -orbit*0.7)
-        key(ARM+COL+HAIR, f)
+        slosh(lean, orbit, c, t)
+        key(ARM+COL+HAIR, f); key_root(f)
+        ao.keyframe_insert('scale', frame=f)
     smooth_handles(a)
     events[name]={'duration_f':N,'fps':60,
         'events':{'circle_start':24,'circle_end':78,'snap':82,'impact_window':[86,100]},
+        'scale_at_peak':{'xy':SXY,'z':SZ},
         'telegraph':'the CIRCLE is the tell; its speed tells the player how long they have',
+        'silhouette':('SINKS and spreads — a low broad pool tracing the floor' if low
+                      else 'RISES and narrows — a tall column reaching the ceiling'),
         'vfx_todo':('torrent erupts from BENEATH the target' if low
                     else 'torrent falls from the CEILING onto the target')}
     return a

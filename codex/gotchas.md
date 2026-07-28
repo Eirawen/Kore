@@ -530,3 +530,25 @@ floats off the floor.
 
 This is the slime lesson from the very first animation conversation: you do
 not rig a liquid, you deform it.
+
+### 60. For a liquid/amorphous creature, the base is NOT a stand
+Weighting bends by height (`0.25 + 0.75*h`) is correct for a BIPED — the
+feet are planted and the torso swings. Apply it to a creature whose lower
+body IS its mass (water, slime, a swarm) and you build a **bobblehead**: the
+base sits rigid while the figure wobbles on top of it, and every clip reads
+as a figurine on a plinth.
+
+Khaled spotted it across the whole moveset at once — "a figurine on a stand,
+that bobbles around."
+
+**The conceptual error is animating a woman STANDING ON a base.** The pool at
+her feet is not furniture, it is the heaviest part of her body. **In a fluid,
+mass leads from the BOTTOM** — a wave is driven by what is underneath, not by
+the tip.
+
+Fix, applied to every clip:
+- raise the weight floor (0.25 → 0.55) so the base carries real motion
+- the ROOT translates laterally with the lean/orbit: water shifts its whole
+  mass, it does not pivot about a fixed foot
+- give `col0`/`col1` an explicit slosh that LAGS the top (the base arrives
+  late, then keeps going)

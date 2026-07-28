@@ -251,7 +251,12 @@
     100
    ]
   },
+  "scale_at_peak": {
+   "xy": 0.88,
+   "z": 1.35
+  },
   "telegraph": "the CIRCLE is the tell; its speed tells the player how long they have",
+  "silhouette": "RISES and narrows \u2014 a tall column reaching the ceiling",
   "vfx_todo": "torrent falls from the CEILING onto the target"
  },
  "atk_torrent_floor": {
@@ -266,7 +271,12 @@
     100
    ]
   },
+  "scale_at_peak": {
+   "xy": 1.3,
+   "z": 0.55
+  },
   "telegraph": "the CIRCLE is the tell; its speed tells the player how long they have",
+  "silhouette": "SINKS and spreads \u2014 a low broad pool tracing the floor",
   "vfx_todo": "torrent erupts from BENEATH the target"
  },
  "atk_lance": {
