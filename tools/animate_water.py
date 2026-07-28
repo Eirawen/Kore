@@ -180,6 +180,10 @@ def clip_waveform():
     for f in range(0,N+1,2):
         clear()
         t=f/float(N)
+        # LUNGE: she commits to the direction BEFORE she loses form. v2 just
+        # folded, with no moment of decision, and the collapse frame read as
+        # leaning BACK. Anticipation must point where she is going.
+        lunge = math.sin(min(t/0.12,1.0)*math.pi) if t<0.20 else 0.0
         if t<0.12:   d=t/0.12*0.0;             crouch=t/0.12
         elif t<0.26: d=(t-0.12)/0.14;          crouch=1.0
         elif t<0.62: d=1.0;                    crouch=1.0
@@ -205,15 +209,23 @@ def clip_waveform():
         # ── BURY THE HEAD ────────────────────────────────────────
         # The single strongest anti-wave cue is a readable head leading the
         # mass. Fold the upper column hard so it sinks INTO the body.
+        # A BREAKING WAVE'S CREST IS AT THE LEADING EDGE — high in front,
+        # tapering behind. v2 had it backwards (high at the tail), which is
+        # exactly what reads as "leaning back". The collapse lays her out
+        # head-first, so her TOP segments are the front: they must curl UP
+        # into a crest while the mid-body stays flat and the tail thins.
         for i,nm in enumerate(COL):
             up = i/6.0
-            bury = -70.0*d*up*up          # top segments fold hardest
-            crest = math.sin(up*math.pi)  # mass peaks mid-body, tapers both ends
-            und = 6.0*d*math.sin(t*20.0 - up*2.4)
-            bend(nm,(1,0,0), -20.0*crouch*(0.25+0.75*up) + bury + und - 8.0*d*crest)
+            bury  = -70.0*d*up*up                    # fold her flat...
+            crest =  46.0*d*max(0.0, (up-0.62)/0.38) # ...then curl the FRONT up
+            und   = 6.0*d*math.sin(t*20.0 - up*2.4)
+            bend(nm,(1,0,0), -20.0*crouch*(0.25+0.75*up) + bury + crest + und
+                             - 30.0*lunge*(0.2+0.8*up))   # dive forward first
         for i,nm in enumerate(HAIR):
             bend(nm,(1,0,0), -34.0*crouch - 30.0*d
                              + 8.0*d*math.sin(t*20.0-(7+i)*0.6))
+        # the arm reaches AHEAD during the lunge — it points where she goes
+        if lunge>0.01: bend('arm0',(1,0,0), -34.0*lunge)
         # arms fold flat into the mass, then get thrown out on the reform
         if t<0.62:
             bend('arm0',(0,1,0), -70.0*d); bend('arm1',(0,1,0), -60.0*d)
@@ -232,7 +244,12 @@ def clip_waveform():
         'uDissolve_envelope':dissolve,
         'scale_at_peak':{'x':ST_X,'y':ST_Y,'z':SQ_Z},
         'note':'invulnerable while formless — no readable figure IS the contract',
-        'vfx_todo':'wave crest + spray sheet during travel; splash ring on reform'}
+        'vfx_todo':('THE MESH ONLY GETS YOU TO "low fast formless mass". '
+                    'Everything that reads as WATER is the layer on top: '
+                    'crest spray along the leading edge, a foam sheet trailing '
+                    'the tail, churn where it meets the floor, and a splash '
+                    'ring on reform. Dedicated VFX session.'),
+        'anticipation':'forward LUNGE at f0-12 before form is lost'}
     return a
 
 mode=sys.argv[-1]
