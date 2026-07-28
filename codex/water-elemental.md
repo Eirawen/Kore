@@ -272,3 +272,78 @@ assets/models/creatures/water_elemental_sub.glb           the shipped mesh
   bucket, so she reacts without denting her silhouette
 - Glide + surge locomotion (base leads, head trails, overshoot on stop)
 - Real scale (she is normalised to 1.0; she should LOOM, 2.2-2.5m)
+
+---
+
+# 7. THE MOVESET (2026-07-28)
+
+Seven clips on the 14-bone rig (arm extended to arm0 → arm1 → **arm_hand**;
+two bones could not sell a snap, and a circling arm reads through WHERE THE
+HAND POINTS). Event map: `Kore/assets/water_events.json`.
+
+## 7a. THE LAW THIS ARC PROVED: the body sells it, the arm aims it
+
+I flagged early that her silhouette is too busy for a limb gesture to
+telegraph — then built four arm-based attacks anyway. v1 of `atk_wave_rise`
+proved it: all a viewer reads is a lean and some hair. The arm is buried in
+ribbons.
+
+**Fix: the COLUMN commits hard enough that the SILHOUETTE changes, and the
+arm rides on top as the precise origin the VFX spawns from.** Column lean on
+wave_rise went from ±8° to −32°/+40°. On the torrents the whole upper body
+ORBITS with the arm, so the telegraph is a moving MASS, readable at any
+distance.
+
+Applies to any creature whose outline is noisy. Silhouette is the only
+channel that survives clutter.
+
+## 7b. Clips
+
+| clip | f | what |
+|---|---|---|
+| `glide` | 60 loop | lag cascade: base leads, head trails, hair furthest. No legs = no gait, no plants, no IK. Root translation is the game's. |
+| `atk_wave_rise` | 84 | deep COIL (rear-back) → uncoil surge; wave leaves on the arm arc @43 |
+| `atk_torrent_ceiling` | 108 | arm circles overhead, body orbits with it, snap @82 |
+| `atk_torrent_floor` | 108 | mirror: she STOOPS and traces the floor |
+| `atk_lance` | 30 | no gather, no arc — a jab. Its shortness is what makes the big ones feel big. |
+| `react_scoop` | 54 | see below |
+| `waveform` | 96 | dissolve → surge → reform |
+
+**Sign gotcha:** negative X-bend pitches her FORWARD. Ceiling must arch her
+BACK (+), floor must stoop her FORWARD (−). v1 had them inverted and both
+attacks stooped identically.
+
+## 7c. `react_scoop` — water does not flinch
+
+**A flinch implies pain, and pain implies a nervous system.** When you remove
+volume from a body of water the rest FLOWS to fill the void: a depression at
+the scoop point, a wave propagating outward, a sag toward the missing mass,
+then re-cohesion — smaller. The clip is a damped wave travelling UP her
+column, each segment peaking later than the one below it. Her arm goes slack
+rather than bracing.
+
+It reads as **"you are not hurting me, you are diminishing me"**, which is
+right for a boss immune to weapons. And it inverts the game's theme: this is
+the one fight where **the PLAYER is the extractor**. She never cries out; she
+just gets smaller. That should feel a little bad.
+
+## 7d. `waveform` — the visual contract for invulnerable
+
+Dissolve (12) → formless (25) → travel 2.6m → reform (60) → landed (85), with
+a `uDissolve` envelope in the events file for the material to read.
+
+**No readable figure IS the invulnerability contract** — the player should
+never need a UI cue to know she cannot be hit.
+
+v1 froze in the wave shape while translating, so the travel frames were
+identical; water in motion churns. Added an undulation running nose-to-tail
+(the mass ROLLS forward rather than sliding) plus a crest weight so the
+silhouette peaks forward and tapers behind. Reform throws the arm out on an
+overshoot — the water gathers, overshoots, settles.
+
+## 7e. VFX marked TODO (animation is done; effects are a later session)
+- rising wave travelling downrange along the arm arc
+- torrent falling from the ceiling / erupting from beneath
+- water lance, hitscan-fast
+- wave crest + spray sheet during waveform travel; splash ring on reform
+- the scoop's spray burst already exists (`WaterSheddingVFX.scoopBurst`)

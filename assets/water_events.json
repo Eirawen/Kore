@@ -1,0 +1,284 @@
+{
+ "atk_wave_rise": {
+  "duration_f": 84,
+  "fps": 60,
+  "events": {
+   "gather": 22,
+   "release": 42,
+   "impact_window": [
+    42,
+    58
+   ]
+  },
+  "vfx_todo": "rising wave travels downrange along the arm arc from f42"
+ },
+ "react_scoop": {
+  "duration_f": 54,
+  "fps": 60,
+  "events": {
+   "impact": 0,
+   "wave_crest_top": 22
+  },
+  "uWater_step": "game lowers uWater at f0; the wave is the redistribution",
+  "note": "no flinch \u2014 collapse toward the void, then re-cohere smaller"
+ },
+ "waveform": {
+  "duration_f": 96,
+  "fps": 60,
+  "travel_m": 2.6,
+  "events": {
+   "dissolve_start": 12,
+   "formless": 25,
+   "reform_start": 60,
+   "landed": 85
+  },
+  "uDissolve_envelope": [
+   [
+    0,
+    0.0
+   ],
+   [
+    2,
+    0.0
+   ],
+   [
+    4,
+    0.0
+   ],
+   [
+    6,
+    0.0
+   ],
+   [
+    8,
+    0.0
+   ],
+   [
+    10,
+    0.0
+   ],
+   [
+    12,
+    0.036
+   ],
+   [
+    14,
+    0.185
+   ],
+   [
+    16,
+    0.333
+   ],
+   [
+    18,
+    0.482
+   ],
+   [
+    20,
+    0.631
+   ],
+   [
+    22,
+    0.78
+   ],
+   [
+    24,
+    0.929
+   ],
+   [
+    26,
+    1.0
+   ],
+   [
+    28,
+    1.0
+   ],
+   [
+    30,
+    1.0
+   ],
+   [
+    32,
+    1.0
+   ],
+   [
+    34,
+    1.0
+   ],
+   [
+    36,
+    1.0
+   ],
+   [
+    38,
+    1.0
+   ],
+   [
+    40,
+    1.0
+   ],
+   [
+    42,
+    1.0
+   ],
+   [
+    44,
+    1.0
+   ],
+   [
+    46,
+    1.0
+   ],
+   [
+    48,
+    1.0
+   ],
+   [
+    50,
+    1.0
+   ],
+   [
+    52,
+    1.0
+   ],
+   [
+    54,
+    1.0
+   ],
+   [
+    56,
+    1.0
+   ],
+   [
+    58,
+    1.0
+   ],
+   [
+    60,
+    0.981
+   ],
+   [
+    62,
+    0.901
+   ],
+   [
+    64,
+    0.821
+   ],
+   [
+    66,
+    0.74
+   ],
+   [
+    68,
+    0.66
+   ],
+   [
+    70,
+    0.58
+   ],
+   [
+    72,
+    0.5
+   ],
+   [
+    74,
+    0.42
+   ],
+   [
+    76,
+    0.34
+   ],
+   [
+    78,
+    0.26
+   ],
+   [
+    80,
+    0.179
+   ],
+   [
+    82,
+    0.099
+   ],
+   [
+    84,
+    0.019
+   ],
+   [
+    86,
+    0.0
+   ],
+   [
+    88,
+    0.0
+   ],
+   [
+    90,
+    0.0
+   ],
+   [
+    92,
+    0.0
+   ],
+   [
+    94,
+    0.0
+   ],
+   [
+    96,
+    0.0
+   ]
+  ],
+  "note": "invulnerable while formless \u2014 no readable figure IS the contract",
+  "vfx_todo": "wave crest + spray sheet during travel; splash ring on reform"
+ },
+ "atk_torrent_ceiling": {
+  "duration_f": 108,
+  "fps": 60,
+  "events": {
+   "circle_start": 24,
+   "circle_end": 78,
+   "snap": 82,
+   "impact_window": [
+    86,
+    100
+   ]
+  },
+  "telegraph": "the CIRCLE is the tell; its speed tells the player how long they have",
+  "vfx_todo": "torrent falls from the CEILING onto the target"
+ },
+ "atk_torrent_floor": {
+  "duration_f": 108,
+  "fps": 60,
+  "events": {
+   "circle_start": 24,
+   "circle_end": 78,
+   "snap": 82,
+   "impact_window": [
+    86,
+    100
+   ]
+  },
+  "telegraph": "the CIRCLE is the tell; its speed tells the player how long they have",
+  "vfx_todo": "torrent erupts from BENEATH the target"
+ },
+ "atk_lance": {
+  "duration_f": 30,
+  "fps": 60,
+  "events": {
+   "release": 13,
+   "impact_window": [
+    13,
+    22
+   ]
+  },
+  "vfx_todo": "straight water lance from the hand, hitscan-fast"
+ },
+ "glide": {
+  "duration_f": 60,
+  "fps": 60,
+  "loop": true,
+  "note": "lag cascade: base leads, head trails, hair furthest. Root translation is the GAME's job."
+ }
+}
