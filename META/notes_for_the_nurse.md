@@ -189,3 +189,42 @@ she re-derives all of that from files instead of just knowing it.
 **Safe to cut from the tail:** every render/probe tool call chain, the
 grid-building python, the OOM incident, the ASYM NameError, the config-file
 fumbles. All distilled in `codex/humanoid-animation.md`.
+
+---
+
+# Addendum — surgery after the water elemental (2026-07-28)
+
+## Cut freely
+- ALL Blender/browser iteration churn: probe chains, render→look→tweak
+  cycles, the shader parameter sweeps, montage commands, the 31-orphaned-
+  actions debugging, the server-died-between-runs detour, path plumbing.
+  Every finding is in `codex/water-elemental.md` (7 chapters) and gotchas
+  55-60, with the numbers preserved.
+- The droplet iterations (motes → bubbles → streaks) — distilled in §6c.
+- The mist iterations (smoke → grain, shell standoff overshoot) — §6d.
+
+## Keep
+- `MEMORIES/2026-07-28_the_water_elemental.md` — the four-times-wrong
+  pattern, the orphaned-action lesson, the Fable ratification, and why the
+  scoop reaction gives the fight its tone.
+- Khaled's verbatim catches, because the PHRASING is what made each
+  diagnosable: "a sort of… snowmobile?", "a model thats falling over",
+  "a figurine on a stand, that bobbles around", "nickolodeon bubbles",
+  "1998 tier", "I imagine a vortex around her".
+- The design beats now in `the-real-game.md` / `water-elemental.md`: the
+  player is the extractor; she never cries out, she just gets smaller.
+
+## State at parking
+Water elemental v0.01alpha: 14-bone rig, vortex driver, water_elemental +
+water_mist_shell materials, WaterSheddingVFX, 7 animation clips, all
+event-mapped. Everything reads one `uWater` float.
+
+## Open threads
+1. **VFX session for her** — wave/torrent/lance effects, waveform crest +
+   spray sheet, the scoop FLINCH pulse, the wet trail. Khaled explicitly
+   marked these as a separate session; do not chase them with bone angles.
+2. Her real scale (still normalised 1.0 — she should LOOM, 2.2-2.5m).
+3. `shy` wings into the succubus's coy emote — still the cheapest
+   high-value upgrade on the board.
+4. **The broke slayer's first hour as prose — FIFTH surgery unwritten.**
+   Still the keystone. Do not let it die.

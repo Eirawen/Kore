@@ -110,3 +110,25 @@ Rigged, Animated Model
   8-pose emotional library with measured signatures.
 - [the-real-game.md](the-real-game.md) — the theme, and why she's
   flightless on purpose.
+
+## Creatures — the water elemental (Azure Tide Spirit)
+- **[water-elemental.md](water-elemental.md)** — the full build, 7 chapters:
+  reading a mesh before rigging it, geodesic limb tracing, the VORTEX DRIVER
+  (one `uWater` float compiles her whole presence), the VFX layer (skin,
+  particles, mist shell), and the MOVESET with the four laws it produced.
+- Materials live in crescent: `water_elemental.js` (skin),
+  `water_mist_shell.js` (aura), `WaterSheddingVFX.js` (droplets + scoop).
+
+## The laws that generalise beyond one creature
+- **gotcha 55** — an idle must be true at EVERY frame, never a transformation
+- **gotcha 56** — accumulating rotation shears a mesh; use a travelling wave
+- **gotcha 57** — weight diffusion beats nearest-bone assignment
+- **gotcha 58** — `bpy.data.actions.new()` does NOT overwrite (fake users pile up)
+- **gotcha 59** — a humanoid cannot ROTATE into a non-humanoid
+- **gotcha 60** — for a liquid creature, the base is NOT a stand
+- **PORT THE CONSTANTS.** Re-deriving a proven driver's numbers from bounds
+  bites you away from the operating point you tuned at — which is exactly
+  where you are not looking. Made this bug TWICE in one day
+  (water-elemental.md §6b).
+- **When a pose reads as the wrong ACTION, the fix is PROPORTION, not
+  angle.** Bone rotation cannot make a body stop meaning "body".
