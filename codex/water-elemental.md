@@ -156,3 +156,119 @@ VTX_LO/HI 0.14/0.46   CALM_DIR -0.695   CHAOS_FLOOR 0.30
 - Set real scale.
 - Moveset should be WHOLE-BODY, not limb-based — her silhouette is too busy
   for an arm swing to telegraph.
+
+---
+
+# 6. THE VFX LAYER (2026-07-27)
+
+## 6a. Her skin — `water_elemental` material
+
+Inherits `water_orb`'s liquid vocabulary (thickness colour/opacity via
+NdotV, Fresnel rim, fake refraction, detail ripple) and replaces its
+projectile deformation with the vortex driver. **One field drives geometry
+AND shading:** the vertex stage computes churn authority (strand factor x
+height zone x angular asymmetry) and hands it over as `vTurb`, which drives
+FOAM. She froths where she is violent, stays glassy where she is calm, and
+it stays true as she drains because both read `uWater`. No second authoring
+pass, ever.
+
+## 6b. THE BUG THAT BIT TWICE — scale-relative or nothing
+
+Porting the Blender driver, I re-derived the strand radii from the mesh
+bounds (`R*0.17 / R*0.52`) instead of carrying over the proven constants
+(0.085 / 0.26 on R=0.257). Half the correct values, so her TORSO was
+classified as a loose strand: as she drained, her body drooped like a ribbon
+and stretched triangles into huge opaque grey sheets. **Invisible at full
+water**, because droop and squat are zero there.
+
+Then I did it AGAIN with the mist shells — standoffs of 0.06/0.15/0.27
+against a character whose entire radius is 0.26, so the outer shell more
+than doubled her width and three additive layers buried her.
+
+**LAW: when porting a proven driver, port its CONSTANTS. Re-derivation bites
+you away from the operating point you tuned at — which is exactly where you
+are not looking.** Everything downstream now READS the material's uniforms
+rather than keeping copies.
+
+## 6c. Particles — `WaterSheddingVFX`
+
+Bridge principle: every particle is born ON her surface; one spawned in air
+is confetti. Velocity = radial fling + `tangential` swirl, which is what a
+vortex does to water it cannot hold. Spawn angles are **rejection-sampled
+against the shader's own chaos mask**, so droplets can only leave from water
+that is actually moving. Rate scales with `uWater` SQUARED — she looks spent
+well before she is empty.
+
+Three iterations of what a droplet IS:
+1. **Untextured → motes of light.** The default sprite is a soft white
+   radial gradient: bright centre, shapeless. That is a spark. A droplet is
+   the INVERSE — clear core (you look through water), bright RIM (a curved
+   surface bends light at you at its silhouette), one off-centre glint.
+2. **Textured → Nickelodeon bubbles.** A hard bright ring plus a hard glint
+   is a SOAP BUBBLE. Softened the rim, dimmed the glint.
+3. **Round → suspended.** Circles read as floating no matter the texture. A
+   droplet in motion is a STREAK. Fable's velocity stretch (particles-v2)
+   fixed it: `stretch 1.40 / stretchMax 3.5 / stretchTaper 0.45`. Note the
+   proposed 0.35 would have given only +58% at my ~1.65 spawn speed — always
+   compute the stretch you need from your actual speeds. Bonus: it keys off
+   LIVE speed, so a droplet goes round at its apex and re-stretches as
+   gravity takes it. Free physics.
+
+## 6d. The aura — `water_mist_shell`, and WHY it is not particles
+
+Khaled wanted the Morphling look: hundreds of specks, constantly gushing.
+Particles plateau — the pool is preallocated (an InstancedMesh instance
+buffer sized at construction) and every speck costs a CPU integration step.
+**Same lesson as the vortex: a continuum wants a FIELD, not thousands of
+objects faking one.** The shell samples fbm per FRAGMENT, so the speck count
+is bounded by screen area, not by any pool.
+
+- It **shares `water_elemental`'s vertex stage verbatim** (extracted at build
+  time), then inflates along the normal — so it can never drift out of sync
+  with the body it wraps, however the vortex is retuned.
+- Density = grain x view-angle gate (a shell is thickest at the SILHOUETTE,
+  which is where the reference is densest) x chaos mask x `uWater`.
+- The field advects down her spine AND around it, so the haze curls in
+  lockstep with the vortex rather than on its own clock.
+- **THREE NESTED SHELLS** with decorrelated noise offsets at 7/17/28% of her
+  radius. One thin shell reads as frost ON her skin; a stack reads as a
+  cloud AROUND her. Fur/cloud shell technique, still pure fragment work.
+
+**GRAIN vs SMOKE.** High frequency + a HARD threshold gives isolated specks;
+low frequency + a soft threshold gives connected veils, i.e. smoke. My first
+pass built smoke and called it spray. A second decorrelated sample punches
+holes so grains stay separated. Swept 28/38/48/62 → **38**.
+
+## 6e. The overture nobody authored
+
+Density reads `uWater`, so the haze thins BEFORE the ribbons strip. At 10%
+water she is bare while her ribbons remain: **first her atmosphere dies,
+then her wardrobe.** (Fable's catch.) Two systems sharing one float produced
+a damage-state sequence neither of us designed.
+
+## 6f. Division of labour
+
+```
+shell shader -> the continuous haze (thousands of specks, free)
+particles    -> coarse readable elements: droplets, scoop burst, base froth
+bones        -> deliberate motion: sway, gesture, locomotion lag
+```
+
+## 6g. Files
+```
+crescent engine/shaders/materials/water_elemental.js      her skin
+crescent engine/shaders/materials/water_mist_shell.js     the aura
+crescent engine/WaterSheddingVFX.js                       droplets + scoop
+crescent tools/water_elemental_test.html                  harness
+Kore tools/vfx_capture/capture_water.js                   capture driver
+Kore tools/vfx_capture/sweep_shell.js                     parameter sweeps
+Kore tools/subdivide_water.py                             2240 -> 42021 verts
+assets/models/creatures/water_elemental_sub.glb           the shipped mesh
+```
+
+## 6h. Open
+- Wet trail (needs glide locomotion first — a trail needs her moving)
+- The scoop FLINCH: a pulse travelling through her body away from the
+  bucket, so she reacts without denting her silhouette
+- Glide + surge locomotion (base leads, head trails, overshoot on stop)
+- Real scale (she is normalised to 1.0; she should LOOM, 2.2-2.5m)
