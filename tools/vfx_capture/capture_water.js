@@ -31,7 +31,7 @@ const fs = require('fs'), path = require('path');
   const levels=[1.0,0.65,0.35,0.10];
   for (let i=0;i<levels.length;i++){
     await page.evaluate(([w,t])=>{ window.__setWater(w); window.__setTime(t); }, [levels[i], 1.7]);
-    await page.evaluate(()=>{ window.__warm(1.2); });   // populate droplets
+    await page.evaluate(()=>{ window.__warm(2.0); });   // populate droplets
     await page.waitForTimeout(220);
     const d = await page.evaluate(()=>window.__cap());
     fs.writeFileSync(path.join(out,'water_'+i+'.png'), Buffer.from(d.split(',')[1],'base64'));
