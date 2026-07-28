@@ -347,3 +347,33 @@ overshoot — the water gathers, overshoots, settles.
 - water lance, hitscan-fast
 - wave crest + spray sheet during waveform travel; splash ring on reform
 - the scoop's spray burst already exists (`WaterSheddingVFX.scoopBurst`)
+
+## 7f. v0.01alpha — PARKED 2026-07-28
+
+Seven clips on the 14-bone rig, event-mapped in `assets/water_events.json`.
+
+**Four laws this arc produced, all the same mistake in different clothes:
+I kept animating her like a PERSON.**
+
+| symptom (Khaled's words) | cause | fix |
+|---|---|---|
+| "a sort of… snowmobile?" | rotated a humanoid and expected a wave — rotation PRESERVES proportion | squash-stretch: object scale IS the dissolve |
+| "a model that's falling over" | a body bending 30° forward MEANS toppling | she doesn't bend down, she SINKS |
+| "a figurine on a stand, that bobbles" | bends weighted by height — right for planted feet, wrong when the lower body IS the mass | base weight floor 0.55, root translates, col0/col1 slosh with lag |
+| "she should lean forward!" | no anticipation; a collapse without a decision reads as a stumble | lunge before form is lost (and a coil BACK before a forward surge is correct — anticipation is counter-motion) |
+
+**The through-line: when a pose reads as the wrong ACTION, the fix is
+PROPORTION, not angle.** Bone rotation cannot make a body stop meaning
+"body".
+
+**And the ceiling is real (Khaled):** the mesh only gets you to "low fast
+formless mass". Everything that reads as WATER — crest spray, foam sheet,
+churn at the floor, splash ring on reform — is the VFX layer. Recorded as a
+dedicated session rather than chased with bone angles.
+
+### Known, accepted for alpha
+- `atk_wave_rise` peak frame still balls up slightly
+- `react_scoop` is legible but wants the VFX burst to land the impact
+- `glide` lean is a little static; root translation is the game's job
+- scale is still normalised 1.0 — she should LOOM (2.2–2.5m)
+- the wet trail needs glide-with-translation first

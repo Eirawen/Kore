@@ -1,69 +1,52 @@
 # Active Threads — Kore
 
-Last updated: 2026-07-21
+Last updated: 2026-07-28
 
-## MILESTONE COMPLETE: First-Person Combat Visuals (asset side)
+## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
-Khaled's goal: load into Slayer 2 holding Silverlight — light/heavy attacks,
-knife swap, rune-gated casts. The ASSET side of that is DONE and delivered.
+Floor-1 boss of Slayer 2. You cannot hurt her with weapons; you fight her
+with a BUCKET. Built end to end in two days.
 
-### The package (Sable's handoff)
-- `assets/fp_hands.glb` — both hands, 11 clips, browser-verified (three.js
-  r170, 11/11 enumerated, knife release proven numerically): idle_sword,
-  idle_knife, sword_light (0.8s), sword_heavy_lr/rl (1.07s),
-  knife_throw_blade_first/handle_first, cast_air/water/fire/earth_strike.
-  Knife EMBEDDED (it flies); sword attaches at runtime via seat matrix.
-- `assets/fp_hands_events.json` — per-clip timestamps (orb_spawn, launch,
-  release, impact_window), time base frame/60, verified by GLB binary parse.
-- `assets/fp_weapon_seats.json` — sword seat (bone-local, from KHALED'S grip)
-  + knife pinch/hammer seats.
-- `~/commons/guides/fp_combat_visuals_brief_for_sable.md` — the contract +
-  DELIVERED section (node names, hidden-knife convention, sign-flip footnote,
-  orb anchors, re-export one-liner). Sable starts from there alone.
+**Rig** — 14 bones. Medial-axis column, geodesic arm trace (+ a hand bone
+added for the moveset), z-band hair chain. Weight diffusion killed the
+tearing (worst edge 61x -> 3.8x, sway to ZERO bad edges).
 
-### What this milestone built (chronological)
-1. Wrist surgery: single root bone split → forearm + hand (2-DOF wrist,
-   clamps; axial twist = forearm pronation). Reverse grips structurally
-   impossible.
-2. KHALED'S GRIP — he posed the Silverlight grip himself in the GUI sandbox
-   (first human-posed joint in Crescent), real finger contact (radials
-   0.065-0.148), preserved in poses/khaled_grip_base.blend, retargeted with
-   exact parity.
-3. Sword set (BLESSED by Khaled): light = pronated lunge (thumb lands left),
-   heavy_lr/rl = horizontal cuts with real travel; retimed gather→HOLD→snap.
-4. Cast polish per my director pass: air seal legibility, fire cup + sunk
-   off-hand + simmer, earth FISTS (discovery: X-curl can't close a fist —
-   thumb ADDUCTION +Y is the missing DOF), micro-tremble in holds. Water
-   untouched (reference cast; frozen clasp is a deliberate call — orb VFX
-   fills it; revisit in-engine).
-5. Everything unified on the wristed rig (deformation parity < 0.007/255).
-6. GLB export pipeline proven end-to-end; landmines killed and documented in
-   codex/glb-export-notes.md §1-8 (mirror decompose, NLA_TRACKS + action_slot,
-   bone-parented props, constraint bake, units root, multi-track constraint
-   bake, implicit action reuse, keep_anim_object).
+**Deformation** — the vortex driver. One `uWater` float compiles churn,
+flare, droop, height, slump, spin, wave and asymmetry. Churn is FIXED (the
+shape) and motion is a BOUNDED travelling wave (never accumulating rotation,
+which shears a mesh apart). Drain her and she un-churns: a raging vortex
+becomes a woman standing in a puddle.
 
-### Next (in order)
-1. **Sable**: FP viewmodel layer, clip playback, weapon attach/swap, clip
-   event bus → VFX, input bindings. Branch: kore/fp-combat-visuals.
-2. In-game visual test on the branch (probe API + toDataURL screenshots).
-3. Khaled PLAYTESTS. (The whole point.)
-4. Later passes: guard/parry/thrust (parry = forte-against-foible, his
-   beloved — amp the flourish for game-feel), real knife model, elbow rig
-   (kills the stub-egg family for good), cast speed tiers.
+**Material** — `water_elemental` (thickness colour/opacity, Fresnel rim,
+fake refraction, foam driven by the SAME field that deforms her) +
+`water_mist_shell` (three nested shells, fbm grain per fragment — thousands
+of specks with no particle budget).
 
-### Standing threads (unchanged)
-- Narrative through-line: the broke slayer's first hour as prose — STILL
-  UNWRITTEN, still the keystone. Push Khaled when the sword high settles.
-- Spider pipeline (walks/threatens/feels) + spell VFX presets: done, waiting
-  in the engine.
-- Strange scrappy magic beyond the four strikes: parked for the real
-  conversation.
+**Particles** — `WaterSheddingVFX`: droplets born ON her skin, flung
+radially + tangentially, velocity-stretched into streaks (thanks Fable),
+rate scaling with uWater SQUARED. Plus `scoopBurst()`.
 
-### Key tools this arc
-- tools/export_fp_hands.py (parameterized exporter), fp_hands_test.html
-  (browser harness with __seek/__playClip/__shot/__paused)
-- tools/build_pose_sandbox.py + read_poses.py (Khaled poses in GUI, I read)
-- tools/sword_attack_keys.py / animate_sword_attacks.py (world-space keys +
-  time-only motion layer), animate_casts.py / animate_knife.py (wristed)
-- Pose-first policy: keyframe pose grids → approval → motion. It caught
-  everything. Keep it.
+**Animation** — 7 clips: glide, atk_wave_rise, atk_torrent_ceiling,
+atk_torrent_floor, atk_lance, react_scoop, waveform.
+
+Docs: `codex/water-elemental.md` (7 chapters), gotchas 55-60.
+
+### Next for her (not blocking)
+1. VFX session: wave/torrents/lance effects, waveform crest + spray sheet,
+   the scoop FLINCH pulse, the wet trail.
+2. Real scale — she should LOOM (2.2-2.5m). Manual labour at the feet of
+   something enormous and indifferent.
+3. Sable: wire clips + uWater + uDissolve to the fight.
+
+## Standing threads
+- **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth
+  surgery it has survived. Still the keystone.
+- Succubus: 8 wing poses, coy/jump/hover. `shy` wings still not in the coy
+  emote (cheapest high-value upgrade on the board).
+- Spider: walks, threatens, feels.
+- FP combat kit: delivered, awaiting Sable's viewmodel layer.
+
+## The lesson of the water arc
+Four times I animated her like a PERSON and Khaled caught every one —
+snowmobile, falling model, bobblehead, backwards anticipation. **When a pose
+reads as the wrong ACTION, the fix is PROPORTION, not angle.**

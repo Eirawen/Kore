@@ -118,12 +118,12 @@ def clip_wave_rise():
     KEYS=[
         # f,   arm dir,                    col lean(deg), hair lag
         (0,   Vector(( 0.75,-0.55,-0.10)),   0,   0),
-        (16,  Vector(( 0.45,-0.20,-0.86)), -26,   8),   # COIL: deep rear-back
-        (26,  Vector(( 0.42,-0.26,-0.90)), -32,  13),   # settle into the coil
-        (36,  Vector(( 0.60,-0.72, 0.30)),  10, -10),   # uncoil begins
-        (43,  Vector(( 0.34,-0.55, 0.95)),  40, -26),   # SURGE — wave leaves
-        (50,  Vector(( 0.32,-0.52, 0.97)),  34, -20),   # peak, held
-        (66,  Vector(( 0.62,-0.58, 0.18)),   6,  -4),   # recover
+        (16,  Vector(( 0.45,-0.20,-0.86)), -13,   8),   # COIL: deep rear-back
+        (26,  Vector(( 0.42,-0.26,-0.90)), -16,  13),   # settle into the coil
+        (36,  Vector(( 0.60,-0.72, 0.30)),   5, -10),   # uncoil begins
+        (43,  Vector(( 0.34,-0.55, 0.95)),  20, -26),   # SURGE — wave leaves
+        (50,  Vector(( 0.32,-0.52, 0.97)),  17, -20),   # peak, held
+        (66,  Vector(( 0.62,-0.58, 0.18)),   3,  -4),   # recover
         (84,  Vector(( 0.75,-0.55,-0.10)),   0,   0),
     ]
     for f,ad,lean,hl in KEYS:
@@ -133,7 +133,7 @@ def clip_wave_rise():
             bend(nm,(0,1,0), lean*(0.60+0.40*i/6.0))
         for i,nm in enumerate(HAIR):
             bend(nm,(0,1,0), hl*(0.4+0.6*i/3.0))
-        slosh(lean, 0.0, 1.0, f/84.0)
+        slosh(lean*0.6, 0.0, 1.0, f/84.0)
         key(ARM+COL+HAIR, f); key_root(f)
     smooth_handles(a)
     events['atk_wave_rise']={'duration_f':84,'fps':60,
@@ -156,12 +156,12 @@ def clip_scoop_react():
         for i,nm in enumerate(COL):
             phase=t*3.4 - i*0.42                    # travels upward
             amp=math.exp(-max(phase,0.0)*1.1)*math.sin(max(phase,0.0)*3.2)
-            bend(nm,(1,0,0), -11.0*amp)             # sag toward the scoop
-            bend(nm,(0,1,0),  -5.5*amp)
+            bend(nm,(1,0,0), -21.0*amp)             # sag toward the scoop
+            bend(nm,(0,1,0), -10.5*amp)
         for i,nm in enumerate(HAIR):
             phase=t*3.4 - (7+i)*0.42
             amp=math.exp(-max(phase,0.0)*1.1)*math.sin(max(phase,0.0)*3.2)
-            bend(nm,(1,0,0), -16.0*amp)             # loose water whips hardest
+            bend(nm,(1,0,0), -30.0*amp)             # loose water whips hardest
         # the arm goes slack for a moment — she does not brace, she sags
         slack=math.exp(-t*3.0)*math.sin(t*7.0)
         bend('arm0',(0,1,0), -9.0*slack)
