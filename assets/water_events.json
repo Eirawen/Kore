@@ -230,6 +230,11 @@
     0.0
    ]
   ],
+  "scale_at_peak": {
+   "x": 1.18,
+   "y": 2.55,
+   "z": 0.28
+  },
   "note": "invulnerable while formless \u2014 no readable figure IS the contract",
   "vfx_todo": "wave crest + spray sheet during travel; splash ring on reform"
  },

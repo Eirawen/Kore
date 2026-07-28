@@ -490,3 +490,43 @@ bones, then diffuse over the mesh graph (`w = 0.45*w + 0.55*mean(neighbours)`,
 ~12 iterations). Enforces continuity across every seam automatically.
 1-2 bones/vert -> 4.79, worst edge ratio 61.38 -> 3.80, and sway went to
 ZERO bad edges. Audit with edge-length ratio vs rest; it costs no vision.
+
+### 58. `bpy.data.actions.new()` does NOT overwrite — fake users pile up
+An action saved with `use_fake_user=True` survives the next run, so
+`actions.new('waveform')` silently returns **`waveform.001`**, then `.002`,
+`.003`… Every rebuild lands in a fresh orphan while the ORIGINAL keeps
+playing, so renders look unchanged and you conclude your edit "didn't take"
+— then chase a phantom bug in perfectly correct code. I burned three
+debugging rounds on this and found 31 orphaned actions in one file.
+
+**Tells:** the render is byte-identical after a real change; the action's
+fcurve count doesn't match what you keyed (`keyframe_insert` returns True
+and the values are right, but a later inspection of `actions['name']` shows
+them missing).
+
+**Fix:** purge before creating.
+```python
+for old in [x for x in bpy.data.actions
+            if x.name == name or x.name.startswith(name + '.')]:
+    old.use_fake_user = False
+    bpy.data.actions.remove(old)
+a = bpy.data.actions.new(name)
+```
+Generalises to every `bpy.data.*.new()` — meshes, materials, armatures all
+name-suffix on collision rather than replacing.
+
+### 59. A humanoid cannot ROTATE into a non-humanoid
+Waveform v1 read as "a person hunched over a snowmobile" because I built a
+dissolve out of bone rotations. **Rotation preserves proportion**, so the
+figure survives every pose you put it in: the head still reads at the front,
+the height stays, limbs stick out like handlebars — and a readable head is
+the single strongest anti-wave cue there is.
+
+**To stop being a body you must destroy the PROPORTIONS — squash and
+stretch.** Object scale IS the dissolve (height 0.28, travel 2.55, width
+1.18), plus folding the upper column hard so the head sinks INTO the mass.
+Compensate the squash with a downward offset (`base_z * (1 - sz)`) or she
+floats off the floor.
+
+This is the slime lesson from the very first animation conversation: you do
+not rig a liquid, you deform it.

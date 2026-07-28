@@ -64,6 +64,13 @@ def smooth_handles(act):
             kp.handle_left_type=kp.handle_right_type=('AUTO_CLAMPED' if e else 'AUTO')
 
 def new_action(name):
+    # GOTCHA: actions.new() does NOT overwrite. A same-named action saved
+    # with use_fake_user survives, so every rebuild silently produced
+    # 'waveform.001', '.002', ... and all my fixes landed in orphaned
+    # duplicates while the ORIGINAL kept rendering. Purge first.
+    for old in [x for x in bpy.data.actions if x.name==name or x.name.startswith(name+'.')]:
+        old.use_fake_user=False
+        bpy.data.actions.remove(old)
     a=bpy.data.actions.new(name)
     ao.animation_data_create(); ao.animation_data.action=a
     return a
@@ -147,51 +154,83 @@ def clip_scoop_react():
 #    The visual contract for INVULNERABLE is: no woman, no target.
 # ══════════════════════════════════════════════════════════════════
 def clip_waveform():
+    """WAVEFORM v2.
+
+    v1 read as a SNOWMOBILE (Khaled) — a hunched figure travelling, not a
+    wave. Diagnosis: I ROTATED her. Rotation preserves proportion, so a
+    humanoid stays humanoid however you bend it. Three tells survived: the
+    HEAD was still readable at the front (a wave has no head, and the moment
+    a brain finds one it reads 'creature'), she stayed TALL (a wave is low
+    and wide), and limbs stuck out like handlebars.
+
+    A dissolve must DESTROY THE PROPORTIONS. That is the slime lesson: you
+    do not rig a liquid, you deform it — squash and stretch. So the object
+    scale IS the dissolve:
+        height  -> 0.28   (a wave is LOW)
+        travel  -> 2.55   (a wave is LONG)
+        width   -> 1.18   (and it spreads)
+    plus the head buried into the mass and a crest riding the front.
+    """
     a=new_action('waveform'); clear()
     N=96
-    DIST=2.6                       # metres travelled, at her 1.0 scale
+    DIST=2.6
+    SQ_Z, ST_Y, ST_X = 0.28, 2.55, 1.18
+    BASE_Z = -0.5                     # her lowest vert in object space
     dissolve=[]
     for f in range(0,N+1,2):
         clear()
         t=f/float(N)
-        # phases: gather 0-.12 | dissolve .12-.26 | travel .26-.62 | reform .62-.88 | settle
-        if t<0.12:   d=0.0;                    crouch=t/0.12
+        if t<0.12:   d=t/0.12*0.0;             crouch=t/0.12
         elif t<0.26: d=(t-0.12)/0.14;          crouch=1.0
         elif t<0.62: d=1.0;                    crouch=1.0
         elif t<0.88: d=1.0-(t-0.62)/0.26;      crouch=1.0-(t-0.62)/0.26
         else:        d=0.0;                    crouch=0.0
+        d=max(0.0,min(1.0,d))
         dissolve.append((f, round(d,3)))
-        # root travel: eased in the dissolve, fast during the surge
+
+        # ── THE DISSOLVE IS A SCALE, NOT A POSE ──────────────────
+        sz = 1.0 + (SQ_Z-1.0)*d
+        sy = 1.0 + (ST_Y-1.0)*d
+        sx = 1.0 + (ST_X-1.0)*d
+        ao.scale=(sx, sy, sz)
+        # squashing about the origin would lift her off the floor; drop her
+        # so her base stays planted
+        drop = BASE_Z*(1.0-sz)
+
         if t<0.26: s=0.0
         elif t<0.62: u=(t-0.26)/0.36; s=u*u*(3-2*u)
         else: s=1.0
-        ao.location=(0.0, -DIST*s, 0.0)
-        # body: crouch low and pitch FORWARD into the wave, unreadable at peak.
-        # UNDULATE while travelling — v1 froze in the wave shape and the
-        # travel frames were identical; water in motion churns. A wave runs
-        # nose-to-tail so the mass rolls forward instead of sliding.
-        und = math.sin(t*22.0) * d
+        ao.location=(0.0, -DIST*s, drop)
+
+        # ── BURY THE HEAD ────────────────────────────────────────
+        # The single strongest anti-wave cue is a readable head leading the
+        # mass. Fold the upper column hard so it sinks INTO the body.
         for i,nm in enumerate(COL):
-            crest = 1.0 - abs(i/6.0 - 0.72)*1.5      # crest forward, taper behind
-            bend(nm,(1,0,0), -34.0*crouch*(0.3+0.7*i/6.0)
-                             + 7.0*und*math.sin(t*22.0 - i*0.7)
-                             - 9.0*d*crest)
+            up = i/6.0
+            bury = -70.0*d*up*up          # top segments fold hardest
+            crest = math.sin(up*math.pi)  # mass peaks mid-body, tapers both ends
+            und = 6.0*d*math.sin(t*20.0 - up*2.4)
+            bend(nm,(1,0,0), -20.0*crouch*(0.25+0.75*up) + bury + und - 8.0*d*crest)
         for i,nm in enumerate(HAIR):
-            bend(nm,(1,0,0), -46.0*crouch + 9.0*und*math.sin(t*22.0-(7+i)*0.7))
-        # arm folds in during dissolve, thrown out on reform (the overshoot)
+            bend(nm,(1,0,0), -34.0*crouch - 30.0*d
+                             + 8.0*d*math.sin(t*20.0-(7+i)*0.6))
+        # arms fold flat into the mass, then get thrown out on the reform
         if t<0.62:
-            bend('arm0',(0,1,0), -55.0*crouch); bend('arm1',(0,1,0), -40.0*crouch)
+            bend('arm0',(0,1,0), -70.0*d); bend('arm1',(0,1,0), -60.0*d)
+            bend('arm0',(1,0,0), -40.0*d)
         else:
-            u=(t-0.62)/0.38
-            over=math.sin(u*math.pi)*1.0
-            bend('arm0',(0,1,0), -55.0*crouch + 28.0*over)
-            bend('arm1',(0,1,0), -40.0*crouch + 20.0*over)
+            u=(t-0.62)/0.38; over=math.sin(u*math.pi)
+            bend('arm0',(0,1,0), -70.0*d + 30.0*over)
+            bend('arm1',(0,1,0), -60.0*d + 22.0*over)
         key(ARM+COL+HAIR, f); key_root(f)
+        _r=ao.keyframe_insert('scale', frame=f)
+
     smooth_handles(a)
     if ao.animation_data.action: smooth_handles(ao.animation_data.action)
     events['waveform']={'duration_f':N,'fps':60,'travel_m':DIST,
         'events':{'dissolve_start':12,'formless':25,'reform_start':60,'landed':85},
         'uDissolve_envelope':dissolve,
+        'scale_at_peak':{'x':ST_X,'y':ST_Y,'z':SQ_Z},
         'note':'invulnerable while formless — no readable figure IS the contract',
         'vfx_todo':'wave crest + spray sheet during travel; splash ring on reform'}
     return a
