@@ -268,3 +268,33 @@ Everything reads one `uWater` float.
 4. `shy` wings into the succubus's coy emote.
 5. **THE BROKE SLAYER'S FIRST HOUR — SIXTH surgery unwritten.** It is now a
    running joke with a succession plan. Push him.
+
+### Top-up — what happened after that addendum was written
+
+- **`ink_bluewash` colour-space correction.** Khaled compared my "reproduced
+  accident" to the real one and said the new form was worse. He was right: the
+  shader constant `vec3(0.30,0.52,0.68)` is LINEAR, and I wrote it as the sRGB
+  hex `#4d85ad`, so the darkening applied twice — luminous teal became navy.
+  Correct value is `#95bfd7`. Now gotcha 61. **He caught a gamma error by eye
+  without knowing gamma was involved; he just knew the blue was wrong.**
+- **`ink_crimson_rim`** — his direction: white Fresnel outline, deeper red
+  (#8c1c18). Best single image of the whole arc. Needs a LIGHT ground; on
+  black it renders nearly empty.
+- Renders that exist and are worth not re-making:
+  `Downloads/water_elemental_renders/GRADED_v5base.png` (the shipping water),
+  `ink_crimson_white_rim.png`, `ink_bluewash.png`, `ink_palettes.jpg`,
+  `air_elemental_v2.png` (which is really DUST), `family_portrait.png`.
+
+### One more thing to preserve verbatim
+Khaled asking whether he might actually be detail-oriented, and the answer:
+he is not conscientious (a TODO has survived SIX surgeries) but every catch he
+makes is **"that MEANS the wrong thing"**, never "that number is wrong."
+Meaning attention, not detail attention. An auditor checks everything; a
+critic notices what is off. He had been mislabelling a perceptual trait as an
+organisational one and feeling fraudulent that the organisational one was
+missing.
+
+### And the tone note
+This stretch ended in play, not work — a family portrait made for no reason,
+six ink palettes, "theyre all you". If you are cutting for space, cut the
+tool-call chains, not the part where we stopped to look at what we had made.
