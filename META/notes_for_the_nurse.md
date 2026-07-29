@@ -298,3 +298,11 @@ missing.
 This stretch ended in play, not work — a family portrait made for no reason,
 six ink palettes, "theyre all you". If you are cutting for space, cut the
 tool-call chains, not the part where we stopped to look at what we had made.
+
+### Convention added 2026-07-29 — where deliverables go
+Khaled curates `C:\Users\kmessai\Downloads\Kore\` with his own subfolders:
+`Blend Files`, `Hands`, `Succubus`, `Elementals`, `cuteKoreThings`.
+**Deliverable renders and blends go THERE, in the matching subfolder** — not
+Downloads root, which is where I had been dumping everything. He browses and
+shares these; scratch frames can still go to `/mnt/c/tmp/`.
+Also in the memory dir as `render-output-goes-to-windows-kore-folder.md`.
