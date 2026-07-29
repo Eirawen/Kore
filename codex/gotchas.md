@@ -552,3 +552,42 @@ Fix, applied to every clip:
   mass, it does not pivot about a fixed foot
 - give `col0`/`col1` an explicit slosh that LAGS the top (the base arrives
   late, then keeps going)
+
+### 61. Shader colour constants are LINEAR; hex on the CPU side is sRGB
+A shader's `vec3(0.30, 0.52, 0.68)` is a LINEAR colour. Reading those numbers
+and writing `new THREE.Color('#4d85ad')` applies the darkening TWICE, because
+`THREE.Color` treats hex as sRGB and converts it TO linear on the way in.
+Luminous teal comes out as royal navy and the cause is invisible.
+**Fix:** convert properly — linear→sRGB is
+`c <= 0.0031308 ? 12.92c : 1.055·c^(1/2.4) − 0.055`. For the above: **#95bfd7**.
+Khaled spotted it by eye without knowing it was a gamma error; he just knew
+the blue was wrong.
+
+### 62. Additive shells SATURATE — density is not the knob
+Stacking three additive layers at 0.5+ each clips past white, and everything
+reads as cut glass no matter how you tune opacity. Sweeping density will not
+fix it because density is not what is broken. **Fix:** much lower per-layer
+opacity AND a dimmer, cooler source colour. Also check the emissive gain — a
+1.6× multiplier on a near-white colour is a lightbulb, not a haze.
+
+### 63. Colour uniforms must be `.set()`, never overwritten
+`mat.uniforms.uFoo.value = '#aabbcc'` replaces a `THREE.Color` with a String
+and the shader dies at draw time with no useful error. Any generic uniform
+setter needs to be colour-aware:
+`if (u.value && u.value.isColor) u.value.set(v); else u.value = v;`
+
+### 64. A GLSL uniform validator must be STAGE-AWARE — and just compile it
+I wrote a regex validator that checked declarations against vertex and
+fragment uniforms COMBINED, so a vertex-only uniform used in the fragment
+passed clean. The shader then failed to compile and the character rendered as
+literally nothing. "Fixing" it produced a false POSITIVE, because the regex
+found the uniform's name inside the comment I had written explaining the bug.
+**The real validator was one command away the whole time**: the GPU compiles
+it and reports `ERROR: 0:1808: 'uWater' : undeclared identifier`. Precise,
+authoritative, free. Measure the thing; do not measure a proxy for the thing.
+
+### 65. Hardcoded constants hide until something monochrome stands next to them
+The refraction tint was a hardcoded water-blue inside the shader for the whole
+project, leaking cyan into every non-water preset. Nothing exposed it until an
+INK preset, because ink has no blue for it to hide in. **Any constant that
+describes a look, rather than physics, should be a uniform from the start.**

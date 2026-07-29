@@ -377,3 +377,101 @@ dedicated session rather than chased with bone angles.
 - `glide` lean is a little static; root translation is the game's job
 - scale is still normalised 1.0 — she should LOOM (2.2–2.5m)
 - the wet trail needs glide-with-translation first
+
+---
+
+# 8. READABILITY (2026-07-28)
+
+Khaled, looking back across the whole arc: *"do u feel like maybe at some
+point we lost the plot?"* He was right, and the regression was invisible to
+me because **I only ever compared each step to the step before it, never to
+where we started.**
+
+## 8a. What was actually lost
+
+The ORIGINAL model's legibility came from **colour separation** — pink
+ribbons, blue body, pale hair. Three materials telling you where the woman
+ends and the water begins. I replaced all of it with ONE water material,
+which is correct for the concept but **spent the entire readability budget
+and never bought it back.** Then the vortex added strand density. Then the
+aura added haze. Each step defensible; the sum is murk.
+
+**Readability is not "less", it is HIERARCHY.** Decide what carries
+information — her figure, her posture, her volume — and give THAT the
+contrast. The decorative water can stay quiet. Reducing noise uniformly just
+makes a quieter blur.
+
+## 8b. The toolkit — all three ride the strand factor
+
+The vortex already computes what is her BODY and what is her WATER, so all
+three readability tools are gated on the same mask. Each is independently
+switchable so they can be permuted.
+
+- **`uCoreGlow`** — lit from WITHIN. Reads as solid-inside-translucent, and
+  it dims with `uWater`, so her brightness IS her health.
+- **`uBodyRim`** — Fresnel outline on the FIGURE only, never the strands, so
+  her silhouette gets drawn for her without the water competing.
+- **`uPink`** — the strands take a tint the body does not. This is the colour
+  separation the original had.
+
+Isolation sweep verdict: **the tools work and the MIST was the culprit.** With
+all three on and no mist she is the most readable she has ever been — better
+than the original, still unmistakably water. Mist then erodes it step by step.
+The answer was both, in a ratio.
+
+## 8c. Self-lit colour — albedo is at the mercy of the room
+
+The pink bleached to grey under the beauty rig. Cause: the key is `#bfe6ff`
+at 4.2 and **a red albedo cannot reflect light that is not there**, plus the
+additive cyan core glow diluting it again.
+
+**LAW: any colour that must survive arbitrary lighting cannot live in albedo
+alone.** `uPinkEmissive` makes the blood ride `uCoreGlow`, so it is lit from
+INSIDE her and holds under any scene. Also the physically honest answer —
+blood suspended in glowing water would catch that glow.
+
+## 8d. The blood
+
+Khaled named it ~40 minutes after the tint existed: *"i have the answer for
+why - its blood. its just blood."* Not minerals, not decoration. **She has
+been drinking.** Something died in that water and never fully cleared, so it
+hangs in her strands and pools where she is thickest — which is exactly what
+the shader already did unprompted, because the tint is a PARTIAL mix over
+what is there and depth does the rest.
+
+It changes the fight: you are hauling buckets out of something visibly not
+clean, and every load has that in it. She never cries out; she gets smaller
+and paler, and the last thing to leave her is the red.
+
+**Design note: a reason may arrive after the design. Sometimes you just do
+things you like** (Khaled: "Hideaki anno with the cross on the first angel").
+The justification showed up late and turned out to be load-bearing.
+
+## 8e. The artist's note — height-graded mist
+
+SaltyButterMilk (artist): *"i like the top part of 1 and the bottom part of 5
+… its too distracting if theres too much wispyness on top but on the bottom
+is fine … keep it at a lower level than around the leg area."*
+
+Right, and physically correct: **spray is densest at its source.** The churn
+is at her base. Haze at her head should be thin residue that drifted up.
+
+`uMistTopGain` / `uMistFalloffLo` / `uMistFalloffHi`. The real win is that
+base and crown density are **decoupled** — before, "more atmosphere at the
+pool" always cost "busier head", which is exactly the trade she objected to.
+Shipped: base 0.150 (v5), crown ×0.09 (~0.013). Literally top of 1, bottom
+of 5.
+
+**Both of the day's art notes were correct for reasons beyond taste.** Neither
+person was expressing a preference; both had noticed something UNTRUE about
+the image and reached for the nearest words. Treat "I don't like this" as a
+report that something is lying.
+
+## 8f. The beauty rig
+
+`__pretty()` in the harness. **Backlight is what makes anything translucent
+live** — key goes BEHIND her so the water lights from within rather than
+being surfaced. Cool fill shapes the front, warm kicker stops the blue going
+monotone, uplight catches the pool, camera drops low so she looms.
+
+Shipping render: `Downloads/water_elemental_renders/GRADED_v5base.png`.
