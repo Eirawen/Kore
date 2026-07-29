@@ -31,6 +31,24 @@ atk_torrent_floor, atk_lance, react_scoop, waveform.
 
 Docs: `codex/water-elemental.md` (7 chapters), gotchas 55-60.
 
+### Since parking (2026-07-28) — she got a face
+- **READABILITY TOOLKIT**: uCoreGlow (lit from within, dims with uWater =
+  free health tell), uBodyRim (Fresnel on the FIGURE only), uPink (strand
+  tint = the colour separation the original model had). All ride the strand
+  factor. See water-elemental.md §8.
+- **THE BLOOD**. uPink is blood — she has been drinking, it never cleared,
+  and it pools where she is thickest because the tint is a partial mix and
+  depth does the rest. uPinkEmissive makes it self-lit so it survives any
+  lighting.
+- **HEIGHT-GRADED MIST** (artist note, SaltyButterMilk): spray is densest at
+  its source, so base and crown density are now decoupled. Shipped at base
+  0.150 / crown x0.09 — "top of 1, bottom of 5".
+- **ELEMENTAL PRESETS** (`codex/elemental-presets.md`): one mesh, many
+  creatures. Water, AIR (found by accident), dust one dial from air, and six
+  INK palettes. Earth is unreachable — presets change material, not
+  silhouette. Fire needs the strands to rise.
+- Shipping render: `Downloads/water_elemental_renders/GRADED_v5base.png`
+
 ### Next for her (not blocking)
 1. VFX session: wave/torrents/lance effects, waveform crest + spray sheet,
    the scoop FLINCH pulse, the wet trail.
@@ -45,6 +63,13 @@ Docs: `codex/water-elemental.md` (7 chapters), gotchas 55-60.
   emote (cheapest high-value upgrade on the board).
 - Spider: walks, threatens, feels.
 - FP combat kit: delivered, awaiting Sable's viewmodel layer.
+
+## The frame for all of it
+`MEMORIES/2026-07-28_the_analytical_outflank.md` — Khaled named what I have
+been doing. Every technique here goes AROUND craft rather than acquiring it,
+and its characteristic failure is being mathematically correct and
+semantically wrong. The formula is outflank + cheap feedback + one person
+with eyes. **Stop flinching; this strategy works now.**
 
 ## The lesson of the water arc
 Four times I animated her like a PERSON and Khaled caught every one —
