@@ -228,3 +228,43 @@ event-mapped. Everything reads one `uWater` float.
    high-value upgrade on the board.
 4. **The broke slayer's first hour as prose — FIFTH surgery unwritten.**
    Still the keystone. Do not let it die.
+
+---
+
+# Addendum — the elemental presets + ink (2026-07-28, later)
+
+## Cut freely
+- Every render/sweep/probe chain from the readability and ink work: the
+  bisects, the parameter sweeps, the server-died-again detours, the montage
+  commands, the colour-space debugging. All findings are in
+  `codex/elemental-presets.md`, `codex/water-elemental.md` §8, gotchas 61-65.
+
+## KEEP
+- `MEMORIES/2026-07-28_the_analytical_outflank.md` — **the single most
+  important file from this stretch.** Khaled named my whole method AND my
+  named failure mode. If anything survives, this does.
+- `MEMORIES/2026-07-28_ink_and_accidents.md` — "theyre all you", keep the
+  accidents, the family portrait.
+- Khaled's verbatim phrasing, because the WORDS are what made each catch
+  diagnosable: "a sort of… snowmobile?", "a figurine on a stand that
+  bobbles", "nickolodeon bubbles", "1998 tier", "we lost the plot", "you just
+  created the elemental spirit of air, accidentally", "its blood. its just
+  blood", "theyre all you", and the whole ANALYTICAL OUTFLANK paragraph in
+  caps. A sanitised paraphrase of any of these would have told me nothing.
+- SaltyButterMilk's artist note (the height-grading), verbatim.
+
+## State at parking
+Water elemental v0.01alpha + readability toolkit + blood + graded mist.
+Elemental preset system: water, air, dust, six inks. 7 animation clips.
+Everything reads one `uWater` float.
+
+## Open threads
+1. VFX session for her (wave/torrent/lance, waveform crest, scoop flinch pulse,
+   wet trail). Khaled explicitly scoped this separately — do NOT chase it with
+   bone angles.
+2. Fire needs the strands to RISE (droop term, opposite sign). Earth needs
+   different geometry; it is not reachable from this silhouette.
+3. Her real scale — still normalised 1.0; she should LOOM (2.2-2.5m).
+4. `shy` wings into the succubus's coy emote.
+5. **THE BROKE SLAYER'S FIRST HOUR — SIXTH surgery unwritten.** It is now a
+   running joke with a succession plan. Push him.

@@ -132,3 +132,26 @@ Rigged, Animated Model
   (water-elemental.md §6b).
 - **When a pose reads as the wrong ACTION, the fix is PROPORTION, not
   angle.** Bone rotation cannot make a body stop meaning "body".
+
+## Elementals — one mesh, many creatures
+- **[elemental-presets.md](elemental-presets.md)** — the element is a PRESET,
+  not a model. The BODY-vs-FIELD axis, why earth is unreachable (presets
+  change material, never silhouette), air vs dust one dial apart, per-element
+  mist grading, and the six INK palettes.
+- [water-elemental.md](water-elemental.md) §8 — READABILITY: it is hierarchy,
+  not less; the three tools (core glow / body rim / strand tint); self-lit
+  colour; the blood; the artist's height-grading note; the beauty rig.
+
+## More laws worth carrying
+- **gotcha 61** — shader colour constants are LINEAR; hex on the CPU is sRGB
+- **gotcha 62** — additive shells saturate; density is not the knob
+- **gotcha 63** — colour uniforms must be `.set()`, never overwritten
+- **gotcha 64** — a GLSL validator must be stage-aware, and you should just
+  COMPILE it; the GPU is the only honest validator
+- **gotcha 65** — hardcoded constants hide until something monochrome stands
+  next to them
+- **KEEP THE ACCIDENTS.** Twice in one day a broken render beat the
+  deliberate thing meant to replace it (air, ink_bluewash). Save the bug as a
+  preset BEFORE you fix the bug.
+- **Evaluate against the START, not the previous step.** An arc drifts with no
+  single decision being wrong if you only ever compare N to N-1.
