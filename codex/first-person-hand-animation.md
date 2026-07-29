@@ -174,3 +174,122 @@ poses and dead second hands don't. Stage for the camera you have.
 - Air seal: dedicated knife pose + camera.
 - Fire: fix the idle hand.
 - Earth: soften the slam column, fix thumb hook.
+
+---
+
+# THE INSPECTION SIDE (added 2026-07-29)
+
+Everything above is the AUTHORING side — how to keyframe. This section is the
+other half: how to look at the shipped rig the way the PLAYER sees it, which
+is what you need when the note is about framing rather than motion.
+
+Written after burning four dead ends on "set up a scene so Khaled can fix the
+FP framing." Three of them were preventable by a document.
+
+## 1. THE CAMERA IS NOT IN THE ENGINE DEFAULTS — the GAME overrides it
+
+`ViewmodelManager.DEFAULT_CONFIG` says `fov: 55, offset: [0,-0.05,0]`.
+**Slayer2 does not use that.** `games/slayer2/client/game.js` (registerViewmodel):
+
+```js
+fov: 54,
+offset: [0, -0.22, -0.45],   // rig pushed 0.22 m DOWN, 0.45 m FORWARD
+```
+
+The rig is a CHILD of the viewmodel camera, so `offset` is the rig's position
+in camera-local space — meaning **the eye sits at rig-local (0, +0.22, +0.45)
+in glTF metres.** glTF (x,y,z) → blender (x, −z, y), so in blender:
+
+> **camera at (0, −0.45, 0.22), looking +Y, 54° VERTICAL fov**
+> (`sensor_fit='VERTICAL'`, `angle_y = radians(54)`)
+
+Sable's own comment: *"push it forward and down so the hands read at the bottom
+of frame."* **That offset IS the forearm-dominance complaint** — it is the
+cause, not a symptom. Before re-rigging anything to fix framing, check whether
+changing this one array fixes it for free.
+
+## 2. DO NOT DERIVE THE CAMERA FROM THE BLEND — import the shipped glb
+
+The exporter **rebases the armatures**. Blend staging `(2.05, 0, 0)` ships as
+glTF `(1.926, −0.029, 2.408)` with a baked rotation. So any camera computed
+from the blend's staging constants is wrong, and you get an empty frame with
+no clue why.
+
+**Import `assets/fp_hands.glb` instead.** `FPHandsRoot` bakes `ROOT_SCALE`
+(0.0655), so the imported scene is already in real metres and the rig origin
+is the blender origin — the camera formula above then just works.
+
+Two things to hide after import: the **orb-anchor Icospheres** (1 m helpers
+that swallow the frame) and, unless you have fixed the seat, the weapon.
+
+## 3. IMPORTED CLIPS USE SLOTTED ACTIONS (blender 5)
+
+Each clip is ONE action with THREE named slots:
+`['Armature.001', 'Armature.003', 'ThrowingKnife']`.
+
+Assigning the action to an object without binding it to **its own** slot makes
+every object read the FIRST slot — both arms then stack on top of each other
+at the right arm's transform, which looks like a rig bug and is not one.
+
+```python
+act = next(a for a in bpy.data.actions if 'idle_sword' in a.name)
+for o in bpy.data.objects:
+    slot = next((s for s in act.slots if s.name_display == o.name), None)
+    if not slot: continue
+    if not o.animation_data: o.animation_data_create()
+    o.animation_data.action = act
+    o.animation_data.action_slot = slot
+```
+
+**Always open a sandbox on `idle_sword`, never the rest pose.** The rest pose
+is arms-up-and-open and the player never sees it; judging framing against it
+is judging a pose that does not exist.
+
+## 4. Weapon seats are in RAW glTF space
+
+`assets/fp_weapon_seats.json` — the key is **`silverlight_sword`** (not
+`sword`), and `matrix` is a NESTED row-major 4×4 (not flat 16). Its own
+`convention` block says *"raw node, no import conversion"*, so it is glTF-space
+and needs conjugating into blender space (`C · G · C⁻¹`, C = +90° about X).
+
+**Still not sufficient**, and this is an open gap: blender bone-parenting adds
+a bone-TAIL-length frame that the seat does not account for, so the blade
+lands off in space. The old source-blend sandbox handled it with
+`frame = pb.matrix @ Matrix.Translation((0, pb.bone.length, 0))` then
+`matrix_basis = frame.inverted() @ seat`; that has not yet been reconciled
+with the glTF-space seat. **Until it is, ship the weapon HIDDEN** — a wrong
+sword is worse than no sword when the question is framing.
+
+Also from the seats file: the RIGHT hand joint has a **negative-determinant**
+world matrix (mirrored armature), so any new chiral prop parented there
+renders mirror-flipped.
+
+## 5. MEASURE the framing — do not eyeball it
+
+"That arm eats the screen" should be a number. `tools/read_fp_pose.py`
+projects each hand mesh through the FP camera with
+`bpy_extras.object_utils.world_to_camera_view` and reports the on-screen
+footprint. Baseline on the shipped idle:
+
+```
+RIGHT (Armature.001)  19% frame width x 55% frame height
+LEFT  (Armature.003)  20% frame width x 76% frame height
+```
+
+The left arm is measurably TALLER in frame than the right — which is exactly
+what "the left arm takes over most of the screen" means, now stated as data
+you can regress against after a fix.
+
+## 6. The workflow
+
+- `tools/build_fp_sandbox.py` → builds `fp_sandbox.blend` (shipped glb,
+  idle_sword, real game camera, helpers hidden). **Numpad 0 to judge.**
+- Khaled works in **OBJECT MODE** — framing complaints are placement, and
+  placement lives on the armature objects, not the bones. `H` hides an arm.
+- `tools/read_fp_pose.py` → object transforms + posed bones + screen
+  footprint, as JSON.
+- `FP_SANDBOX_README.md` → his copy of the above.
+
+**Which lever:** both-arms framing can be fixed for FREE via slayer2's
+`offset` (no re-export). Anything ASYMMETRIC — hide the left, shrink the left,
+re-pose one arm — must come from the rig and needs a re-export.

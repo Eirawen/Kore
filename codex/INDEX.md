@@ -155,3 +155,18 @@ Rigged, Animated Model
   preset BEFORE you fix the bug.
 - **Evaluate against the START, not the previous step.** An arc drifts with no
   single decision being wrong if you only ever compare N to N-1.
+
+## First-person hands — the INSPECTION side (2026-07-29)
+- [first-person-hand-animation.md](first-person-hand-animation.md) now has a
+  second half: how to view the SHIPPED rig as the PLAYER sees it.
+  - **The FP camera is not in the engine defaults** — slayer2 overrides them
+    (`fov 54`, `offset [0,-0.22,-0.45]`), which puts the blender eye at
+    `(0,-0.45,0.22)` looking +Y. That offset IS the forearm-dominance
+    complaint; check it before re-rigging anything.
+  - **Never derive the camera from the blend** — the exporter rebases the
+    armatures. Import the shipped glb.
+  - **Slotted actions**: bind each object to its OWN slot or both arms stack.
+  - **Seats are raw glTF space**; the bone-tail frame is an OPEN GAP, so the
+    weapon ships hidden in the sandbox.
+  - **Measure the framing** (`read_fp_pose.py` screen footprint), do not
+    eyeball it.
