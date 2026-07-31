@@ -293,3 +293,73 @@ you can regress against after a fix.
 **Which lever:** both-arms framing can be fixed for FREE via slayer2's
 `offset` (no re-export). Anything ASYMMETRIC — hide the left, shrink the left,
 re-pose one arm — must come from the rig and needs a re-export.
+
+## 7. CHIRALITY — the rig shipped TWO LEFT HANDS (2026-07-29)
+
+Khaled, looking at the sandbox: *"Perchance, are there two left fucking hands
+in this scene? They both have thumbs on the right from the back."*
+
+He was right. `fp_hands.glb` as imported into Blender renders **two left
+hands**, and it had been that way since delivery.
+
+### How to TEST chirality (none of my existing checks could)
+
+Do not use frames or normals — a mirrored object lies through both (bone
+frames invert, and normals get flipped to fix shading, which flips your test
+with them). My first two attempts were degenerate/contaminated and gave
+±0.0000.
+
+**Signed tetrahedron volume of four landmarks. Positions only.**
+```python
+w = M @ pb['hand'].head
+i = M @ pb['Bone.019'].tail   # index tip
+p = M @ pb['Bone.010'].tail   # pinky tip
+t = M @ pb['Bone.003'].tail   # thumb tip
+sv = (i-w).cross(p-w).dot(t-w)      # sign IS the handedness
+```
+Mirroring flips this sign and nothing else does. Sanity-check `|(i-w)×(p-w)|`
+is well above zero, or the points are coplanar and the sign is noise.
+
+### What was measured
+```
+shipped glb, right arm  scale (-3.118,-3.118,-3.118)  sv -0.0000091  LEFT
+same arm     scale (+3.118,+3.118,+3.118)  sv +0.0000091  RIGHT
+left arm     scale (+3.118,+3.118,+3.118)  sv -0.0012024  LEFT
+SOURCE cgtrader_hand_wristed.blend: BOTH armatures LEFT, both +scale,
+   data chirality identical to 7 dp (-0.16296673 / -0.16296718)
+   => the working blend is ONE hand duplicated, not the purchased pair.
+```
+
+Mirroring one hand is *correct practice* — a left and a right hand ARE mirror
+images, identical topology, no remeshing needed (only normals invert, and
+nothing on a bare hand is asymmetric). The bug is applying the mirror TWICE.
+
+### The fix in the sandbox
+Node scale to positive, then restore placement by rotating about the wrist:
+```python
+o.scale = tuple(abs(v) for v in o.scale)
+corr = f_new.rotation_difference(f_old).to_matrix().to_4x4()
+o.matrix_world = (Matrix.Translation(w_old) @ corr
+                  @ Matrix.Translation(-w_new)) @ o.matrix_world
+```
+Wrist moved 0.00000 m, forearm angle 0.000°.
+
+### OPEN — do NOT "fix" the exporter until this is answered
+`bake_mirror` is behind a `--bake-mirror` flag that is OFF by default, and
+when it runs it correctly zeroes the node scale. Staging applies
+`(-3.118, +3.118, +3.118)` (ONE negative axis) but the shipped glb carries
+`(-3.118,-3.118,-3.118)` (three) — so **Blender's glTF exporter re-decomposed
+the transform**, and those two differ by a rotation, i.e. they can be
+equivalent. So the defect may live in the Blender IMPORT round-trip rather
+than the asset, in which case three.js may have been rendering it correctly
+all along. **Verify in-engine before changing the exporter.**
+
+### Why every check I had missed it
+Deformation parity, weight audits, clip enumeration, GLB binary verification —
+**all chirality-blind.** A perfectly mirrored hand passes every one of them.
+`fp_weapon_seats.json` even documents "the RIGHT hand joint world matrix has
+NEGATIVE determinant" as a quirk to work around: I wrote down the symptom and
+never asked why it was there.
+
+**Add a chirality assertion to the export verification** — right arm signed
+volume must be positive — so this class cannot ship again.
