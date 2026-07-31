@@ -1,5 +1,17 @@
 """FP POSE SANDBOX — the SHIPPED rig, seen through the ACTUAL game camera.
 
+!! DO NOT "FIX" CHIRALITY OR NORMALS IN HERE. !!
+Blender's glTF importer does NOT faithfully reproduce a negatively-scaled
+armature: it loses the mirror, so BOTH hands measure LEFT after import and
+the right hand's winding measures inverted. THE SHIPPED ASSET IS CORRECT --
+verified against the raw glb bytes (2026-07-31):
+    Armature.001 (scale -3.118)  signed_volume +0.0001046971  RIGHT
+    Armature.003 (scale +3.118)  signed_volume -0.0001046976  LEFT
+a perfect mirror pair. three.js renders it correctly. Any chirality or normal
+"correction" applied here breaks a healthy asset. Verify against the GLB, not
+against a re-import of it.
+
+
 The old sandbox used an OBSERVER camera looking at the hands from outside.
 Fine for judging a grip; useless for judging FRAMING, which is the complaint:
 "the left arm is just upended, taking over most of the screen ... in our fpv
@@ -120,30 +132,58 @@ try:
                 except Exception: pass
         right = bpy.data.objects.get('Armature.001')
         seats = json.load(open('/home/khaled/Kore/assets/fp_weapon_seats.json'))
-        entry = seats.get('silverlight_sword') or {}
-        socket = 'hand'
-        M = entry.get('matrix')
+        # prefer Khaled's OWN seat, measured from the grip he posed
+        M = None; socket = 'hand'
+        try:
+            _kp = json.load(open('/home/khaled/Kore/poses/khaled_pose_full.json'))
+            M = _kp.get('sword_seat_handlocal')
+            if M: print('  using KHALED-derived sword seat')
+        except Exception:
+            pass
+        if M is None:
+            M = (seats.get('silverlight_sword') or {}).get('matrix')
         sw.parent = right; sw.parent_type = 'BONE'; sw.parent_bone = socket
         sw.matrix_parent_inverse.identity()
         bpy.context.view_layer.update()
         if M:
             from mathutils import Matrix
-            # nested row-major 4x4, expressed in RAW GLTF space ("no import
-            # conversion"). Blender's importer rotates the world +90 about X
-            # (gltf Y-up -> blender Z-up), so the seat must be conjugated into
-            # blender space: B = C . G . C^-1
-            G = Matrix([[float(v) for v in row] for row in M])
-            C = Matrix.Rotation(math.radians(90), 4, 'X')
-            sw.matrix_basis = C @ G @ C.inverted()
-        # KNOWN GAP: blender bone-parenting adds a tail-length frame that
-        # this conjugation does not account for, so the blade lands off in
-        # space. A WRONG sword is worse than none while judging arm framing,
-        # so it ships hidden. Unhide 'Silverlight' in the outliner if wanted.
-        sw.hide_viewport = sw.hide_render = True
+            # Khaled's seat is measured in the HAND BONE's own frame, so it
+            # applies directly as world = (arm.matrix_world @ pb.matrix) @ seat.
+            # No glTF-space conjugation, no bone-tail offset guesswork.
+            seat = Matrix([[float(v) for v in row] for row in M])
+            hw = right.matrix_world @ right.pose.bones['hand'].matrix
+            sw.matrix_world = hw @ seat
+            bpy.context.view_layer.update()
+        sw.hide_viewport = sw.hide_render = False
         bpy.context.view_layer.update()
-        print('SWORD imported (hidden — seat needs the bone-tail frame)')
+        print('SWORD seated from Khaled\'s measured grip')
 except Exception as e:
     print('SWORD skipped:', e)
+
+# ── re-apply KHALED'S hand poses (full quaternions, captured 2026-07-31) ──
+# His sword grip (right) and relaxed inward FP idle (left). These are bone-
+# LOCAL rotations, so they are unaffected by the armature's object scale and
+# transplant cleanly onto a pristine import.
+import json, os
+POSE_JSON = '/home/khaled/Kore/poses/khaled_pose_full.json'
+try:
+    kp = json.load(open(POSE_JSON))
+    tag_of = {'Armature.001': 'right', 'Armature.003': 'left'}
+    for o in bpy.data.objects:
+        if o.type != 'ARMATURE': continue
+        tag = tag_of.get(o.name)
+        if not tag or tag not in kp: continue
+        n = 0
+        for bn, q in kp[tag].items():
+            pb = o.pose.bones.get(bn)
+            if pb:
+                pb.rotation_mode = 'QUATERNION'
+                pb.rotation_quaternion = q
+                n += 1
+        print("KHALED POSE applied to %s (%s): %d bones" % (o.name, tag, n))
+    bpy.context.view_layer.update()
+except Exception as e:
+    print('khaled pose not applied:', e)
 
 arms = [o for o in bpy.data.objects if o.type == 'ARMATURE']
 for a in arms:

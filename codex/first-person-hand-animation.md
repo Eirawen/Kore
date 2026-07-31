@@ -294,13 +294,17 @@ you can regress against after a fix.
 `offset` (no re-export). Anything ASYMMETRIC — hide the left, shrink the left,
 re-pose one arm — must come from the rig and needs a re-export.
 
-## 7. CHIRALITY — the rig shipped TWO LEFT HANDS (2026-07-29)
+## 7. CHIRALITY — *** RETRACTED *** the rig was FINE (2026-07-31)
 
 Khaled, looking at the sandbox: *"Perchance, are there two left fucking hands
 in this scene? They both have thumbs on the right from the back."*
 
-He was right. `fp_hands.glb` as imported into Blender renders **two left
-hands**, and it had been that way since delivery.
+**I WAS WRONG AND THIS SECTION IS RETRACTED.** Read §9 before believing any
+of it. The shipped asset is CORRECT: `fp_hands.glb` contains one right hand
+and one left hand, verified against the raw glb bytes. Blender's glTF importer
+loses the mirror on a negatively-scaled armature, so BOTH hands measure LEFT
+*after import* — an artifact of the reader, not the file. Everything below
+describes a bug that does not exist outside Blender.
 
 ### How to TEST chirality (none of my existing checks could)
 
@@ -429,3 +433,53 @@ PAST the handle, not touching it head-on.
 **The lesson for the pipeline: when a spatial relationship resists derivation,
 stop deriving and have Khaled pose it once, then MEASURE.** That is what the
 sandbox is for, and it produced in one pass what my search could not reach.
+
+
+## 9. THE RETRACTION — verify the ARTIFACT, not a re-import of it (2026-07-31)
+
+§7 claimed `fp_hands.glb` ships two left hands. **It does not.** I measured
+Blender's *re-import* and concluded about the *file*.
+
+Decisive test — walk each armature's own subtree in the raw glb and take the
+signed tetrahedron volume of its joint world positions. ~30 lines of pure
+Python, no Blender:
+
+```
+Armature.001 (node scale -3.118)  signed_volume +0.0001046971  RIGHT
+Armature.003 (node scale +3.118)  signed_volume -0.0001046976  LEFT
+```
+
+Identical magnitudes, opposite signs: a perfect mirror pair. **three.js has
+been rendering the hands correctly the whole time.**
+
+### What Blender's importer actually does
+It does not faithfully reproduce a **negatively-scaled armature** — it rebuilds
+bones and loses the mirror. Consequences *inside Blender only*:
+- both hands measure LEFT
+- the right hand's winding measures "inverted" (19% outward vs 74%) — but a
+  mirrored object legitimately has reversed winding and renderers account for
+  it. An outward-facing test reports "inverted" for ANY mirrored object **by
+  construction**.
+
+### The two fixes I applied were both damage
+- setting the right armature's scale positive "to fix chirality" — that scale
+  is LOAD-BEARING; it is what makes the hand right-handed
+- flipping the right hand's normals and clearing its custom split normals —
+  fixing an artifact that only existed in the reader
+
+### RULES
+1. **Chirality and winding checks inside Blender are MEANINGLESS for this
+   rig.** Check the glb bytes.
+2. **Never "fix" an asset based on a re-import.** Measure the artifact that
+   ships. I said I would verify in-engine before touching the exporter, then
+   spent an hour acting as though the asset were broken anyway.
+3. **The exporter needs NO chirality change.** It was healthy all along.
+4. **Bone poses do not transfer freely between mirrored and unmirrored
+   armatures** — the frames mirror with them. Authoring a pose against a
+   wrongly-scaled rig produces work that will not carry over.
+
+### And an operational one
+A headless build that writes the same .blend Khaled has OPEN will silently
+diverge from his unsaved session, and whichever saves last wins. His work now
+lives in `fp_sandbox_khaled.blend`; headless builds write `fp_sandbox.blend`.
+**Never write the file the human is editing.**
