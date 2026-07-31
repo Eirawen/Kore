@@ -1,0 +1,142 @@
+{
+ "seat_bone_local": [
+  [
+   -0.187581,
+   -0.667818,
+   2.604508,
+   1.753179
+  ],
+  [
+   2.607502,
+   0.591837,
+   0.339548,
+   -0.277343
+  ],
+  [
+   0.656032,
+   -2.5433,
+   -0.604876,
+   -0.621766
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ],
+ "right_grip_deg": {
+  "thumb": [
+   39.0,
+   85.9,
+   88.5
+  ],
+  "index": [
+   21.7,
+   104.5,
+   60.4,
+   23.2
+  ],
+  "middle": [
+   19.6,
+   109.4,
+   64.6,
+   81.1
+  ],
+  "ring": [
+   26.4,
+   99.7,
+   114.1,
+   60.9
+  ],
+  "pinky": [
+   35.8,
+   83.2,
+   73.2,
+   58.0
+  ]
+ },
+ "left_idle_deg": {
+  "thumb": [
+   30.8,
+   40.8,
+   45.6
+  ],
+  "index": [
+   7.2,
+   18.9,
+   72.0,
+   14.4
+  ],
+  "middle": [
+   6.2,
+   31.9,
+   59.5,
+   1.2
+  ],
+  "ring": [
+   8.7,
+   35.5,
+   47.2,
+   8.4
+  ],
+  "pinky": [
+   8.7,
+   44.4,
+   12.1,
+   12.0
+  ]
+ },
+ "penetration_pct": 11.69,
+ "arms": {
+  "right": {
+   "loc": [
+    2.40609,
+    -0.42533,
+    -0.07338
+   ],
+   "rot": [
+    -0.41317,
+    0.44411,
+    -1.25913,
+    -1.33386
+   ],
+   "scl": [
+    3.118,
+    3.118,
+    3.118
+   ]
+  },
+  "left": {
+   "loc": [
+    -2.26846,
+    -0.42533,
+    -0.07338
+   ],
+   "rot": [
+    -0.41317,
+    0.44411,
+    -1.25913,
+    -1.33386
+   ],
+   "scl": [
+    3.118,
+    3.118,
+    3.118
+   ]
+  }
+ },
+ "grip_metric": {
+  "rule": "wrist overlap must be ~0%; finger overlap 10-12% IS the contact",
+  "khaled_grip": {
+   "finger_pct": 11.69,
+   "wrist_pct": 0.0
+  },
+  "kore_failures": {
+   "naive_seat_pct": 14.75,
+   "minimised_search_pct": 6.01
+  },
+  "note": "minimising TOTAL interpenetration walks AWAY from a good grip"
+ },
+ "finger_curl_lesson": "a real grip curls the MIDDLE joint 84-114 deg; Kore had been authoring 52-56 deg, roughly half"
+}

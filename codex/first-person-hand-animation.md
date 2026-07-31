@@ -363,3 +363,69 @@ never asked why it was there.
 
 **Add a chirality assertion to the export verification** — right arm signed
 volume must be positive — so this class cannot ship again.
+
+## 8. WHAT KHALED'S POSED GRIP TAUGHT ME (2026-07-29)
+
+He posed the sword grip by hand and asked: *"can you glean any useful
+information, from me having posed the hands like this ... as you werent able
+to before"*. Yes — and one finding inverts an approach I had been confident in.
+
+Data: `poses/khaled_grip_v2.json` (seat matrix, both hands' angles, arms).
+
+### 8a. MINIMISING INTERPENETRATION IS THE WRONG OBJECTIVE
+
+I built an overlap checker, measured my seat at 14.75% "sword verts inside
+hand", called it impalement, and ran a search that got it down to 6.01%. I
+then reported that 6% was "still not a grip".
+
+**His human-approved grip measures 11.69%** — nearly double my "improved"
+version. A real grip presses fingers INTO the handle; that overlap IS the
+contact. Optimising it downward walks away from a correct grip.
+
+### 8b. The metric is WHERE the overlap is, not how much
+
+Classify each overlapping vertex by whether it is nearer a FINGER bone or the
+WRIST. On his grip:
+
+```
+overlap nearer FINGERS : 11.69%   <- gripping, correct
+overlap nearer WRIST   :  0.00%   <- impalement, must stay zero
+```
+
+**Rule: wrist overlap ~0%. Finger overlap 10-12% is contact.** My 14.75%
+failed not because it was large but because it was in the WRIST — a shaft
+through flesh. Same number, opposite meaning, depending on location.
+
+### 8c. A real grip curls about twice as hard as I was authoring
+
+```
+Khaled's grip  thumb [39, 86, 89]   index [22, 105, 60, 23]
+               middle [20, 109, 65, 81]  ring [26, 100, 114, 61]
+               pinky [36, 83, 73, 58]
+```
+Middle joints at **84-114 deg**. My cast/grip poses had been using 52-56 —
+roughly half. That is why my hands always read as "resting near" a prop
+rather than holding it.
+
+His relaxed LEFT idle, for contrast (and it is a good FP idle):
+```
+thumb [31, 41, 46]  index [7, 19, 72, 14]  middle [6, 32, 60, 1]
+ring  [9, 36, 47, 8]  pinky [9, 44, 12, 12]
+```
+Note the asymmetry — index/middle/ring/pinky all differ. Symmetric finger
+values are the tell of a machine-authored hand.
+
+### 8d. The seat, measured instead of derived
+
+Sword in the hand bone's own frame (portable, survives re-staging):
+```
+translation [1.75318, -0.27734, -0.62177]
+rotation(q) [0.51827, 0.51594, -0.34871, -0.58618]
+scale       [-2.6953, -2.6953, -2.6953]
+```
+Fingertip-to-blade-surface distances 0.014-0.039 m — the tips are wrapped
+PAST the handle, not touching it head-on.
+
+**The lesson for the pipeline: when a spatial relationship resists derivation,
+stop deriving and have Khaled pose it once, then MEASURE.** That is what the
+sandbox is for, and it produced in one pass what my search could not reach.
