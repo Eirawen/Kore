@@ -170,3 +170,28 @@ Rigged, Animated Model
     weapon ships hidden in the sandbox.
   - **Measure the framing** (`read_fp_pose.py` screen footprint), do not
     eyeball it.
+
+## First-person hands — READ THE RETRACTION FIRST (2026-07-31)
+- [first-person-hand-animation.md](first-person-hand-animation.md)
+  - **§7 is RETRACTED.** I claimed fp_hands.glb ships two left hands and
+    "fixed" it. The asset is CORRECT — verified against the raw glb bytes
+    (perfect mirror pair). Blender's importer loses the mirror on a
+    negatively-scaled armature. Both fixes were damage.
+  - **§9** — the rules that came out of it: chirality/winding checks inside
+    Blender are meaningless for this rig; never "fix" an asset from a
+    re-import, measure the bytes that ship; the exporter needs no change;
+    bone poses do NOT transfer freely between mirrored and unmirrored
+    armatures; never write the .blend the human has open.
+  - **§8** — what Khaled's hand-posed grip taught me. **Minimising
+    interpenetration is the WRONG objective**: his grip measures 11.69% and
+    my "improved" search measured 6.01%. The metric is WHERE — wrist overlap
+    ~0, finger overlap 10-12% IS the contact. And a real grip curls middle
+    joints 84-114 deg; I had been authoring 52-56 project-wide.
+
+## Two habits to fix (2026-07-31)
+- **When detail and aggregate disagree, I report the aggregate.** My console
+  printed `index dist 0.0603` against target `0.0235` and I reported "12.82%,
+  in band". Report the WORST item, never the summary.
+- **Unqueried defects slide past me.** I look FOR something in a render and
+  confirm it; I do not sweep for what is wrong. Fix with assertions that FAIL
+  per-item, pasted raw — a gate needs no noticing.

@@ -1,6 +1,6 @@
 # Active Threads — Kore
 
-Last updated: 2026-07-28
+Last updated: 2026-07-31
 
 ## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
@@ -55,6 +55,39 @@ Docs: `codex/water-elemental.md` (7 chapters), gotchas 55-60.
 2. Real scale — she should LOOM (2.2-2.5m). Manual labour at the feet of
    something enormous and indifferent.
 3. Sable: wire clips + uWater + uDissolve to the fight.
+
+## FP HANDS — live session, 2026-07-29..31
+
+**Blender MCP is set up and works.** Server runs on the WINDOWS side (WSL NAT
+cannot reach a Windows 127.0.0.1 bind):
+`claude mcp add blender -- /mnt/c/.../Python314/Scripts/blender-mcp.exe`
+Khaled installs the addon, N-panel -> BlenderMCP -> Connect. Live scene
+inspection in sub-second calls; the old loop was 60-400 s cold starts.
+
+**RETRACTION: fp_hands.glb was never broken.** I claimed two left hands and
+"fixed" it; the asset is correct (verified against raw glb bytes, perfect
+mirror pair). Blender's importer loses the mirror on a negatively-scaled
+armature. Both my fixes were damage. See
+`codex/first-person-hand-animation.md` §9 — §7 is retracted.
+
+**Khaled's pose work (KEEP):**
+- `fp_sandbox_khaled.blend` — his session. NEVER write this from headless.
+- `poses/khaled_pose_full.json` — 21+21 bone quaternions + sword seat.
+- `poses/khaled_grip_v2.json` — the grip calibration data.
+
+**The grip metric (his calibration, inverts my approach):**
+minimising interpenetration is WRONG. His grip = fingers 11.69% / wrist 0.00%.
+**Wrist overlap must be ~0; finger overlap 10-12% IS the contact.** And a real
+grip curls middle joints 84-114 deg — I had been authoring 52-56 everywhere.
+
+**Open for the re-export:**
+1. Bone poses do NOT transfer freely between mirrored and unmirrored armatures
+   — his grip was authored against a wrongly-scaled right arm.
+2. Left-hand idle: palm rolled inward + relaxed claw (his approval), needs
+   re-deriving onto the true rig.
+3. Blade points sideways under his seat on the pristine rig — arm framing call.
+4. Sable's `offset: [0,-0.22,-0.45]` is the free lever for forearm dominance.
+5. Build the per-finger PASS/FAIL grip gate + colour-graded collision render.
 
 ## Standing threads
 - **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth

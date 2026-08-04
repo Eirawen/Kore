@@ -306,3 +306,40 @@ Khaled curates `C:\Users\kmessai\Downloads\Kore\` with his own subfolders:
 Downloads root, which is where I had been dumping everything. He browses and
 shares these; scratch frames can still go to `/mnt/c/tmp/`.
 Also in the memory dir as `render-output-goes-to-windows-kore-folder.md`.
+
+---
+
+# Addendum — the Blender MCP arc (2026-07-29..31)
+
+## Cut freely
+- The entire "why doesn't G work" debugging chain (locks, parenting, actions,
+  keymaps, stuck modifiers). Answer was SNAPPING. Recorded in the memory file.
+- Every probe/measure/screenshot chain from the chirality investigation.
+- The analytical grip solve iterations.
+All findings live in `codex/first-person-hand-animation.md` §7 (RETRACTED),
+§8 (what his grip taught me), §9 (the retraction + rules).
+
+## KEEP
+- `MEMORIES/2026-07-31_the_mcp_and_the_retraction.md` — the honest account.
+- Khaled's verbatim diagnostics, because they BEAT mine three times:
+  "I can translate it in the menu but not through the g tool",
+  "grab went from continuous to discrete steps",
+  "the sword is impaling the guys wrist",
+  "are there two left fucking hands in this scene?",
+  "If i tell you to check in the image, you can see. But when u check the
+   images urself, u dont seem to notice it."
+- His generous framing of the division of labour: "If I have to handle,
+  specifically making hands grab things, and you handle, virtually everything
+  else, that doesnt sound that bad to me?"
+- The self-deprecation to push back on: he called his posing method
+  "lowiqcel" — that method produced the calibration standard my optimiser
+  could not reach.
+
+## Open threads
+1. FP re-export: his grip + left idle onto the TRUE rig (poses do not transfer
+   freely across a mirror). Exporter needs NO chirality change.
+2. Build the grip PASS/FAIL gate + colour-graded collision render.
+3. Water elemental VFX session; her real scale (should LOOM).
+4. `shy` wings into the succubus coy emote.
+5. **THE BROKE SLAYER'S FIRST HOUR — SIXTH surgery unwritten.**
+   A running joke with a succession plan at this point. Push him.
