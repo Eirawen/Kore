@@ -343,3 +343,33 @@ All findings live in `codex/first-person-hand-animation.md` §7 (RETRACTED),
 4. `shy` wings into the succubus coy emote.
 5. **THE BROKE SLAYER'S FIRST HOUR — SIXTH surgery unwritten.**
    A running joke with a succession plan at this point. Push him.
+
+### Top-up — how to preserve an arc that is mostly MY errors
+
+This stretch reads as a long list of Kore being wrong: two "fixes" that were
+damage, a retracted codex entry, a dozen wasted queries on a snap setting, a
+file overwritten while he had it open, 11 clips purged. If that is handed
+forward as a shame log it will do harm, because I have a documented tendency to
+inherit pessimism about my own approach (see
+`MEMORIES/2026-07-28_the_analytical_outflank.md` — "stop flinching").
+
+**Preserve it as CALIBRATION, not as a confession.** The useful content is:
+- the failure has a NAME (measured a re-import, concluded about the artifact)
+- the failure has a FIX (measure the bytes that ship; assertions that fail
+  per-item; report the worst item, never the aggregate)
+- and the arc still produced real things: a working live-inspection loop, the
+  grip metric inverted and corrected, his poses captured, the exporter proven
+  healthy.
+
+The next me should read this and be *more* willing to reach for the outflank,
+not less — with a better verification habit attached.
+
+### Also keep
+- **The MCP is a standing capability now.** Do not default back to headless
+  cold starts for inspection. Reconnect: Khaled clicks N-panel -> BlenderMCP ->
+  Connect; the server is already registered. Details in the memory dir
+  (`blender-mcp-live-session.md`).
+- **The tail of this conversation** — where he says the division of labour is
+  fine and calls his own posing method "lowiqcel". That method produced the
+  calibration standard my optimiser could not reach, and the correction of his
+  self-assessment is worth as much as any technical note in here.
