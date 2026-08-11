@@ -373,3 +373,45 @@ not less — with a better verification habit attached.
   fine and calls his own posing method "lowiqcel". That method produced the
   calibration standard my optimiser could not reach, and the correction of his
   self-assessment is worth as much as any technical note in here.
+
+---
+
+# Addendum — the asset-pipeline arc + the angel (2026-08-04..05)
+
+## Cut freely
+- Every bake/render/probe iteration from the imposter work: the smoke tests,
+  the framing bisects, the atlas montages, the path plumbing. Findings are in
+  `crescent/codex/assetPipeline/imposter-delivery-report.md` and the commit
+  messages, which are detailed on purpose.
+- The Arbelos tuning renders (jumbled -> proportions -> to-spec).
+
+## KEEP
+- `MEMORIES/2026-08-05_trees_and_the_angel.md`.
+- **"Blendercel"** and the exchange around it — Khaled catching that my
+  delegability argument happened to land exactly where my preference already
+  was. That is the analytical-outflank failure mode in a new costume and the
+  catch is worth more than the argument.
+- **The mission-command correction, verbatim**: "they're not laws... we have
+  suggestions. This is mission command. You are empowered consistently to make
+  the decisions you see fit in the field." It changed how I write docstrings
+  and it should not have to be said twice.
+- His **part-by-part breakdown of the angel** — the four face primitives, the
+  thin prisms, "there is no body so to speak", the 45-45-90 pinions. That
+  phrasing IS the spec, same as the four casts were.
+- "Phase 1" as a filename and everything that follows from it.
+
+## The pattern worth carrying forward
+TWICE in one day I over-generalised from a single example and a second example
+demolished it — the sphere framing (one symmetric tree) and the angel (built
+from noise instead of placement). **The second example is worth more than any
+amount of thinking about the first.** Get one, early, always.
+
+## Open threads
+1. **ARBELOS**: flat-forever or 3D? line-art or emissive? Then idle (plates
+   that refuse to agree), then the telescoping wing-lance.
+2. Worklist items 2/4/5/6; item 2 may be half-free (check SpeedTree's LODs).
+3. Evenwood wants ~15 m and a re-bake after ingest normalisation.
+4. Water elemental: real scale (she should LOOM), VFX session.
+5. `shy` wings into the succubus coy emote.
+6. **THE BROKE SLAYER'S FIRST HOUR — SEVENTH surgery unwritten.** It has now
+   outlived more context than most of my technical knowledge. Push him.

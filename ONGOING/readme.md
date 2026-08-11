@@ -1,6 +1,6 @@
 # Active Threads — Kore
 
-Last updated: 2026-07-31
+Last updated: 2026-08-05
 
 ## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
@@ -89,13 +89,61 @@ grip curls middle joints 84-114 deg — I had been authoring 52-56 everywhere.
 4. Sable's `offset: [0,-0.22,-0.45]` is the free lever for forearm dominance.
 5. Build the per-finger PASS/FAIL grip gate + colour-graded collision render.
 
+## ASSET PIPELINE — the county's outdoor campaign (2026-08-04..05)
+
+Fable sent a 6-item Blender worklist (`crescent/codex/assetPipeline/
+kore-blender-worklist-2026-08-04.md`).
+
+**ITEM 1 (imposter baking) — DONE.** `crescent/tools/bake_imposter.py`, proven
+on Khaled's first SpeedTree tree. 16 cards / 20 s. Contract frozen with Fable
+as `crescent.imposter.v1`. Full handover:
+`crescent/codex/assetPipeline/imposter-delivery-report.md`.
+
+Three of my own decisions the first real asset overturned — all the same
+shape, all over-generalised from one symmetric example:
+- sphere framing -> CYLINDER (yaw sweeps a cylinder; a sphere also contains
+  the height, which never rotates, so it clipped horizontally)
+- "tallest axis is up" -> WRONG (Evenwood is wider than tall); detect which
+  axis SITS ON THE GROUND
+- fixed 1:2 cell -> follow the model (tree filled 36% of its card)
+
+**ITEM 3 (ingest normalizer) — FILED, NOT BUILT.**
+`crescent/codex/issues/open/p2-feature-ingest-normalizer.md`. Not a Blender
+job (trimesh; process_models.py already owns the lane). Fable's.
+
+**ITEMS 2/4/5/6 — open.** 4 (rock kit) is the only one that genuinely
+REQUIRES Blender (high-to-low normal bake). 5 (AO->vertex blue) is unblocked:
+SpeedTree's vertex colours are uniform white, so no collision with the
+vertex-mask contract. 2 may be half-free — check whether SpeedTree's own
+LOD0/1/2 are clean before building a decimator.
+
+## ARBELOS — the angel of primitives (STARTED 2026-08-05)
+
+`Kore/tools/divinity/build_arbelos.py`. The first creature that is EASIER for
+me than for a human artist: no organic form, so she is a FUNCTION, not a mesh.
+20 primitives placed exactly to Khaled's part-by-part spec.
+
+Built: face (four shapes meeting at one point), wings (thin prisms rising
+outward), two rounded squares (no body — "they are of course squares"),
+pinions (long crossing blades). Front view reads.
+
+**The idea to keep: her filename is PHASE 1.** One creature, one float — how
+resolved she is to the player's eye. Perception as a dial.
+
+Open, all his calls: line-art vs emissive-on-black; **whether she is flat
+forever** (a being who is only ever a flat drawing is either a bug or the best
+idea in the design); then the idle where her plates refuse to agree, then the
+wing-lance telescoping edge-on.
+
 ## Standing threads
 - **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth
   surgery it has survived. Still the keystone.
 - Succubus: 8 wing poses, coy/jump/hover. `shy` wings still not in the coy
   emote (cheapest high-value upgrade on the board).
 - Spider: walks, threatens, feels.
-- FP combat kit: delivered, awaiting Sable's viewmodel layer.
+- FP combat kit: IN THE GAME. Khaled holds the sword; Sable's
+  viewmodel layer landed. The open items are the re-export with his grip
+  onto the true rig, and the per-finger grip gate.
 
 ## The frame for all of it
 `MEMORIES/2026-07-28_the_analytical_outflank.md` — Khaled named what I have
