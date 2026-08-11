@@ -361,6 +361,12 @@ def paint_flat(parts, rgba, name):
     for o in parts: o.data.materials.append(m)
 
 # ── mode ────────────────────────────────────────────────────────
+MODE = 'still'
+try:
+    with open(r'\\wsl.localhost\Ubuntu\home\khaled\Kore\tools\divinity\.arbcfg') as fh:
+        MODE = fh.read().strip() or 'still'
+except Exception: pass
+
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in \
     [i.identifier for i in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
@@ -368,18 +374,31 @@ sc.render.film_transparent = True
 try:
     sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'
 except Exception: pass
-sc.render.resolution_x = sc.render.resolution_y = 1400
-cd = bpy.data.cameras.new('C'); cd.type = 'ORTHO'; cd.ortho_scale = 9.6
+if MODE == 'fp':
+    sc.render.resolution_x, sc.render.resolution_y = 1280, 720
+elif MODE == 'hyper':
+    sc.render.resolution_x = sc.render.resolution_y = 720
+else:
+    sc.render.resolution_x = sc.render.resolution_y = 1400
+cd = bpy.data.cameras.new('C')
+if MODE == 'still':
+    cd.type = 'ORTHO'; cd.ortho_scale = 9.6
+elif MODE == 'fp':
+    # The real test of an attack is not whether it photographs well — it is
+    # whether a player can READ IT IN TIME TO MOVE. Eye height, combat
+    # distance, game field of view, 16:9.
+    cd.type = 'PERSP'; cd.lens = 22.0          # ~80 deg horizontal
+else:
+    cd.type = 'PERSP'; cd.lens = 42.0
 cam = bpy.data.objects.new('C', cd); sc.collection.objects.link(cam); sc.camera = cam
 tgt = Vector((0, 0, 3.1))
-cam.location = tgt + Vector((0, -10, 0))
+if MODE == 'fp':
+    tgt = Vector((0.0, 0.0, 2.80))             # only a mild tilt up, so the
+                                               # incoming lance stays IN FRAME
+    cam.location = Vector((0.0, -9.5, 1.70))   # player eye height, closer
+else:
+    cam.location = tgt + Vector((0, -10 if MODE == 'still' else -13.5, 0))
 cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
-
-MODE = 'still'
-try:
-    with open(r'\\wsl.localhost\Ubuntu\home\khaled\Kore\tools\divinity\.arbcfg') as fh:
-        MODE = fh.read().strip() or 'still'
-except Exception: pass
 
 for o in list(bpy.data.objects):
     if o.type == 'MESH': bpy.data.objects.remove(o, do_unlink=True)
@@ -397,11 +416,127 @@ if MODE == 'still':
     raise SystemExit
 
 # ══════════════════════════════════════════════════════════════════
+# HYPER — 4D projection. VETOED FOR ARBELOS, KEPT AS A CAPABILITY.
+#
+# Khaled, 2026-08-11: "Veto'ing it. I preferred the 2d versions
+# significantly. We can keep the 4d capability to try with other beings,
+# that may fit it better, but the completely flat to 2d to 4d is probably
+# just not the right format."
+#
+# He is right, and the reason generalises: the projection DESTROYS THE
+# PROPERTY THAT MAKES HER WORK. She is compelling because she is flat and
+# has no other side; a 4D->3D projection gives her depth, which is the one
+# thing she was never supposed to have. It made a different creature
+# wearing her shapes.
+#
+# Worth keeping for a being whose identity is NOT flatness — something
+# that should read as intruding from outside the world rather than as a
+# drawing pinned to it.
+#
+# Khaled's friend, looking at the lance: "Ur doing the 4d rotation thing
+# where u interpolate between the 4th dimension or something?"
+#
+# I was not — that was a rotation gradient along a chain, which merely
+# shares the visual signature. But he identified something better than
+# what I built, because it EXPLAINS HER. Why she is flat. Why she cannot
+# be walked around. Why her plates refuse to agree: they are not separate
+# objects, they are cross-sections of ONE object at different depths in a
+# dimension you do not have.
+#
+# So: give every vertex a real fourth coordinate w, rotate in two planes
+# that both involve w, and project 4D->3D by dividing through by (D - w).
+# Shapes then SWELL, CONTRACT and PASS THROUGH EACH OTHER while staying
+# perfectly rigid — motion with no 3D explanation, which is the entire
+# brief for a being outside the compiler's vocabulary.
+#
+# DOUBLE ROTATION, and the rates are incommensurate (golden ratio). A
+# single rotation plane has a 3D lookalike; a double rotation does not.
+# You cannot produce this by spinning anything, in any way, in 3D.
+if MODE == 'hyper':
+    import math as _m
+    # These three numbers decide whether she SHIMMERS or DISINTEGRATES.
+    # At spread 1.35 against D4 3.10 the projection factor hit 5x and she
+    # tore herself off the screen. Keeping w small relative to the 4D
+    # viewing distance holds the swell near +/-10%: wrongness, not wreckage.
+    W_SPREAD = 1.30        # how far apart the slices sit in the 4th dimension
+    W_TILT   = 0.34        # each shape is also TILTED in w, not just offset
+    D4       = 6.00        # 4D viewing distance for the projection
+
+    MESHES = [o for o in bpy.data.objects if o.type == 'MESH']
+    ORIG, WCO = {}, {}
+    for j, o in enumerate(MESHES):
+        vs = [v.co.copy() for v in o.data.vertices]
+        ORIG[o.name] = vs
+        c = sum(vs, Vector((0,0,0))) / len(vs)
+        base = W_SPREAD * (2.0 * (j / max(1, len(MESHES) - 1)) - 1.0)
+        # Per-vertex w tilt must NOT be a linear function of x. Any
+        # x-proportional depth is exactly what a 3D perspective rotation
+        # produces, so correlating w with x makes the whole effect collapse
+        # into a turntable. RADIAL from the shape's own centre instead:
+        # unrelated to screen position, so no 3D rotation can imitate it.
+        WCO[o.name] = [base + W_TILT * ((v - c).length - 0.55) for v in vs]
+
+    NF = 132
+    d = os.path.join(OUT, 'anim', 'hyper'); os.makedirs(d, exist_ok=True)
+    for f in range(NF):
+        t  = f / NF
+        # ROTATE IN THE YW PLANE. This is the whole correction.
+        #
+        # xw rotation gives w' = x*sin(a) + w*cos(a) — and w proportional to
+        # x, divided through by depth, IS a 3D perspective turntable. The
+        # induced term (+/-0.83) outvoted the real per-shape w (+/-0.55), so
+        # the "4D" motion degenerated into an ordinary 3D spin. Khaled called
+        # it immediately.
+        #
+        # She is FLAT, so her y extent is ~0. Rotating in yw therefore gives
+        # w' ~= w*cos(a) with NOTHING induced — every shape swells and
+        # shrinks by its OWN hidden depth, with no relationship to where it
+        # sits on screen. That is the part 3D cannot fake: you cannot spin an
+        # object such that two shapes side by side scale in opposite
+        # directions for reasons invisible in the picture.
+        a1 = 2 * _m.pi * t                              # YW plane — full sweep
+        a2 = 0.16 * _m.sin(2 * _m.pi * t * 0.6180339887)  # XW, small: lateral wrongness
+        c1, s1 = _m.cos(a1), _m.sin(a1)
+        c2, s2 = _m.cos(a2), _m.sin(a2)
+        for o in MESHES:
+            vs, ws = ORIG[o.name], WCO[o.name]
+            for i, v in enumerate(o.data.vertices):
+                x, y, z, w = vs[i].x, vs[i].y, vs[i].z, ws[i]
+                y, w = y * c1 - w * s1, y * s1 + w * c1     # rotate in YW
+                x, w = x * c2 - w * s2, x * s2 + w * c2     # rotate in XW (small)
+                k = D4 / max(0.55, D4 - w)                  # 4D -> 3D projection
+                v.co = (x * k, y, z * k)
+            o.data.update()
+        sc.render.filepath = os.path.join(d, 'f_%04d.png' % f)
+        bpy.ops.render.render(write_still=True)
+    print('HYPER %d frames' % NF)
+    raise SystemExit
+
+# ══════════════════════════════════════════════════════════════════
 # ANIMATION — she has NO SKELETON, so the PRIMITIVE is the animatable
 # unit. Nineteen independent 2D transforms; the vocabulary is entirely
 # what plates can do to each other: drift, gather, stream, scatter.
 # ══════════════════════════════════════════════════════════════════
 import random
+# The lance is a CHAIN OF TRIANGLES stacking toward the viewer, so it
+# needs geometry that does not exist in her resting form. Spawned here,
+# parked at zero scale, and only the lance clip ever wakes them.
+LANCE_N = 11
+SEG = []
+src = next(o for o in bpy.data.objects if o.name.startswith('tri_UR'))
+# each segment gets its OWN material, cycling her substances, so the
+# chain reads as a chain of distinct blades rather than one cyan mass
+SEG_MATS = ['tri_UR', 'face_right_big', 'wing_R_0', 'tri_LL',
+            'wing_L_1', 'face_top', 'wing_R_2', 'tri_UL']
+for k in range(LANCE_N):
+    c = src.copy(); c.data = src.data.copy(); c.name = 'lance_seg_%02d' % k
+    bpy.context.collection.objects.link(c)
+    c.data.materials.clear()
+    c.data.materials.append(DIVINE[SEG_MATS[k % len(SEG_MATS)]]('seg_%d' % k))
+    c.scale = (0.001, 0.001, 0.001)
+    SEG.append(c)
+
+CAM_POS = Vector((0.0, -9.5, 1.70)) if MODE == 'fp' else Vector((0.0, -13.5, 3.1))
 ALL = [o for o in bpy.data.objects if o.type == 'MESH']
 
 # rotation/scale must happen about each SHAPE's own centre, not world zero
@@ -465,6 +600,7 @@ JIT = {o.name: (random.uniform(0, 6.283), random.uniform(0, 6.283),
                 random.uniform(0.6, 1.4)) for o in ALL}
 
 def idle(o, i, t):
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     pa, pb, amp = JIT[o.name]
     fast = 3.0 if o in FACE else 1.0
     k = PRIMES[i % len(PRIMES)] / 23.0
@@ -476,66 +612,140 @@ def idle(o, i, t):
     sc_ = 1.0 + 0.020 * amp * math.sin(2*math.pi*t*k*0.5 + pb)
     o.scale = (sc_, sc_, sc_)
 
-# ── LANCE (gomu gomu) ─────────────────────────────────────────────
-# NOT a stretch. The wing's plates FIRE OFF HER ONE AFTER ANOTHER along
-# one line — a stack of cards launched in sequence, so the wing TRAVELS
-# as a chain. gather -> hold -> stream -> hang -> snap back, with the
-# rest of her recoiling the other way.
-def make_lance(side, reach=7.2):
-    chain = wing(side)
-    sgn = 1.0 if side == 'R' else -1.0
-    def f(o, i, t):
-        if o in chain:
-            n = plate_index(o)
-            lead = 0.055 * (3 - n) if side == 'R' else 0.055 * n
-            u = 0.0
-            if   t < 0.20: u = -0.09 * (t/0.20)                    # gather IN
-            elif t < 0.28: u = -0.09                               # HOLD
-            elif t < 0.58:
-                a = max(0.0, min(1.0, ((t-0.28)/0.30) - lead*2.2))
-                u = -0.09 + (a**1.8) * 1.09                        # STREAM
-            elif t < 0.72: u = 1.0                                 # hang
-            else:
-                a = (t-0.72)/0.28
-                u = 1.0 - a**0.6 * 1.06                            # snap + overshoot
-            o.location.x += sgn * u * reach
-            o.rotation_euler[1] += math.radians(sgn * u * 26.0)
-            sq = 1.0 + 0.55 * max(0.0, u)
-            o.scale = (sq, 1.0, 1.0 - 0.16 * max(0.0, u))
+# ── LANCE (gomu gomu no pistoru) ──────────────────────────────────
+# Khaled's drawing: not the wings, and not a stretch — TRIANGLES STACKING
+# AT YOU, each rotated. Since she is a billboard permanently facing the
+# player, the chain has to leave her plane and come OUT OF THE SCREEN.
+# The camera sits at -Y, so the lance travels in -Y, and each segment is
+# thrown alternately up and down so the chain zigzags as it reaches.
+LANCE_REACH  = 0.82      # per segment, in -Y. The chain must STOP
+                         # WELL SHORT of the lens: at 1.15 the last segment
+                         # sat basically on the camera and filled the frame.
+LANCE_ZIG    = 0.60      # alternating screen-vertical throw
+LANCE_ANCHOR = Vector((1.05, 0.0, 2.75))
+
+# Aimed at the CAMERA, not simply along -Y. A lance that travels parallel
+# to the view axis passes beside you and reads as scenery; one that grows
+# on your eye line reads as a threat you have to leave.
+def _aim_frame():
+    a = LANCE_ANCHOR
+    d = (CAM_POS - a); d.normalize()
+    r = d.cross(Vector((0, 0, 1)));  r.normalize()
+    u = r.cross(d);                  u.normalize()
+    return d, r, u
+
+def lance(o, i, t):
+    # extend 0 -> 1 -> hold -> retract, with a hard snap out and a slower haul back
+    # WIND-UP. Without this the attack goes from nothing to fully extended
+    # in ~0.7s and there is nothing to react TO. The first three blades
+    # gather at the source and SHIVER first — the player's cue to leave.
+    TELE = 0.30
+    if t < TELE:
+        if o in SEG:
+            k = SEG.index(o)
+            if k > 2:
+                o.scale = (0.001, 0.001, 0.001); return
+            g = t / TELE
+            sh = math.sin(t * 62.0) * 0.10 * g
+            dv, rv, uv = _aim_frame()
+            o.location = LANCE_ANCHOR + dv * (0.30 * k) + uv * (sh + 0.12 * k)
+            o.rotation_euler = (math.radians(sh * 90), 0.0,
+                                math.radians(30 * (1 if k % 2 else -1) * g))
+            b = 0.16 * (0.4 + 0.6 * g)
+            o.scale = (b, b, b)
         else:
-            r = 0.0
-            if 0.28 <= t < 0.62: r = math.sin((t-0.28)/0.34*math.pi)
-            o.location.x -= sgn * r * 0.42                          # recoil
-            o.rotation_euler[1] += math.radians(-sgn * r * 3.5)
-    return f
+            c = math.sin(t / TELE * math.pi) ** 2
+            o.location.x += c * 0.22                  # she COCKS before she throws
+            o.rotation_euler[1] += math.radians(c * 4.0)
+        return
+
+    t = (t - TELE) / (1.0 - TELE)                     # remap: the attack proper
+    if   t < 0.14: u = 0.0
+    elif t < 0.46: u = ((t - 0.14) / 0.32) ** 0.55        # SNAP out
+    elif t < 0.62: u = 1.0                                # hang, fully extended
+    else:          u = 1.0 - ((t - 0.62) / 0.38) ** 1.7   # haul back
+
+    if o in SEG:
+        k = SEG.index(o)
+        lead = k / float(LANCE_N)                 # each segment waits its turn
+        a = max(0.0, min(1.0, (u - lead * 0.72) / 0.28))
+        if a <= 0.001:
+            o.scale = (0.001, 0.001, 0.001); return
+        dv, rv, uv = _aim_frame()
+        reach = (k + 1) * LANCE_REACH * a
+        # The zigzag TAPERS toward the player. Constant amplitude means the
+        # near blades — a metre from the lens — swing right off the top of
+        # frame. A lance CONVERGES on what it is aimed at: wide chaos at her
+        # end, a point at yours.
+        taper = 1.0 - 0.78 * (k / float(LANCE_N))
+        zig   = LANCE_ZIG * taper * (1 if k % 2 else -1) * a
+        o.location = LANCE_ANCHOR + dv * reach + uv * zig + rv * (0.10 * a * taper)
+        # each one ROTATED — the chain pinwheels as it reaches
+        o.rotation_euler = (math.radians(26 * (1 if k % 2 else -1) * a * taper),
+                            math.radians(46 * k * a * 0.35),
+                            math.radians(38 * (1 if k % 2 else -1) * a * taper))
+        # shrink with depth so perspective ENLARGES them back toward
+        # parity — the chain reads as receding blades, not a widening cone
+        base = 0.50 * (1.0 - 0.50 * k / float(LANCE_N))
+        sc_ = base * (0.35 + 0.65 * a)
+        o.scale = (sc_, sc_, sc_)
+    else:
+        o.location.x -= u * 0.30                          # she recoils
+        o.rotation_euler[1] += math.radians(-u * 3.0)
+
+# ── IDLE FLAP ─────────────────────────────────────────────────────
+# Normal wings move as one. Hers move ONE SQUARE AT A TIME, with lag —
+# a travelling wave down the chain, so the wing never holds a shape. The
+# rest of her breathes underneath it.
+def flap(o, i, t):
+    ph = 2 * math.pi * t
+    if '_L_' in o.name or '_R_' in o.name:
+        k = plate_index(o)
+        lag = k * 0.62                                     # THE LAG
+        w = math.sin(ph - lag)
+        o.location.z += 0.34 * w
+        o.location.x += 0.10 * w * (-1 if '_L_' in o.name else 1)
+        o.rotation_euler[1] += math.radians(9.0 * math.sin(ph - lag - 0.5))
+    else:
+        o.location.z += 0.075 * math.sin(ph - 1.1)         # body rides the beat, late
+        pa = JIT[o.name][0]
+        o.rotation_euler[1] += math.radians(1.6 * math.sin(ph * 0.7 + pa))
 
 # ── FLINCH ────────────────────────────────────────────────────────
 # Registration failure, spiked. Every plate jumps out from the centre
 # and comes back — the image is DISTURBED, not the body injured.
 def flinch(o, i, t):
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     d = math.exp(-4.2 * t) * math.sin(2*math.pi*t*3.4)
     ang = JIT[o.name][0]
     o.location.x += math.cos(ang) * d * 0.42
     o.location.z += math.sin(ang) * d * 0.42
     o.rotation_euler[1] += math.radians(d * 11.0)
 
-# ── DISPERSE ──────────────────────────────────────────────────────
-# She does not break, because she was never assembled. She stops being
-# ARRANGED: every plate leaves along its own vector and keeps going.
+# ── DISPERSE, rebuilt ─────────────────────────────────────────────
+# The radial explosion was Windows Movie Maker. The right idea is already
+# in what she IS: she is FLAT, so a plate turned edge-on STOPS EXISTING.
+# She does not break apart — she has no other side to show you, so she
+# vanishes by trying to show it. Staggered, so she goes out plate by
+# plate, and the face is LAST because the face is the last thing to admit
+# it was never there.
 def disperse(o, i, t):
-    ang = JIT[o.name][0]; spd = 0.7 + JIT[o.name][2]
-    e = t**1.7
-    o.location.x += math.cos(ang) * e * 6.0 * spd
-    o.location.z += math.sin(ang) * e * 6.0 * spd + e * 1.4
-    o.rotation_euler[1] += math.radians(e * 190 * (1 if i % 2 else -1))
-    k = max(0.02, 1.0 - e * 0.85)
-    o.scale = (k, k, k)
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
+    order = 0.72 if o in FACE else (JIT[o.name][2] - 0.6) * 0.55
+    a = max(0.0, min(1.0, (t - order * 0.55) / 0.42))
+    if a <= 0.0: return
+    e = a ** 0.8
+    o.rotation_euler[2] += math.radians(92.0 * e)          # turn EDGE-ON
+    o.rotation_euler[1] += math.radians(14.0 * e * (1 if i % 2 else -1))
+    o.location.z += 0.55 * e * e                            # and drift up as it goes
+    o.location.x += 0.18 * e * math.cos(JIT[o.name][0])
 
-CLIPS = [('idle', 150, idle), ('lance_R', 60, make_lance('R')),
-         ('lance_L', 60, make_lance('L')), ('flinch', 30, flinch),
-         ('disperse', 90, disperse)]
+CLIPS = ([('lance_fp', 66, lance)] if MODE == 'fp' else
+         [('idle', 150, idle), ('flap', 96, flap), ('lance', 66, lance),
+          ('flinch', 30, flinch), ('disperse', 96, disperse)])
 
-sc.render.resolution_x = sc.render.resolution_y = 700
+if MODE != 'fp':
+    sc.render.resolution_x = sc.render.resolution_y = 700
 for name, n, fn in CLIPS:
     bake(name, n, fn)
     d = os.path.join(OUT, 'anim', name)

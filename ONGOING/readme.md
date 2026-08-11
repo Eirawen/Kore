@@ -1,6 +1,6 @@
 # Active Threads — Kore
 
-Last updated: 2026-08-05
+Last updated: 2026-08-11
 
 ## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
@@ -117,23 +117,54 @@ SpeedTree's vertex colours are uniform white, so no collision with the
 vertex-mask contract. 2 may be half-free — check whether SpeedTree's own
 LOD0/1/2 are clean before building a decimator.
 
-## ARBELOS — the angel of primitives (STARTED 2026-08-05)
+## ARBELOS — the angel of primitives (2026-08-05..11)
 
-`Kore/tools/divinity/build_arbelos.py`. The first creature that is EASIER for
-me than for a human artist: no organic form, so she is a FUNCTION, not a mesh.
-20 primitives placed exactly to Khaled's part-by-part spec.
+`Kore/tools/divinity/build_arbelos.py`. One file, four modes via
+`tools/divinity/.arbcfg`: `still` / `anim` / `fp` / `hyper`.
+Output: `Downloads/Kore/Arbelos/`.
 
-Built: face (four shapes meeting at one point), wings (thin prisms rising
-outward), two rounded squares (no body — "they are of course squares"),
-pinions (long crossing blades). Front view reads.
+**FORM.** 19 coplanar primitives, built to Khaled's part-by-part spec. The
+lower half is FOUR LINE SEGMENTS — where they cross they fence the
+quadrilateral, and joining each corner's two free ends to their crossing
+point gives the four triangles. Nothing down there is placed
+independently. She is a BILLBOARD and that is the design: walk around her
+and she does not turn, because she HAS no other side.
 
-**The idea to keep: her filename is PHASE 1.** One creature, one float — how
-resolved she is to the player's eye. Perception as a dial.
+**MATERIAL MISMATCH IS THE IDEA**, not colour variety. Four behaviours
+interleaved so no two neighbours are the same substance: FLAT, METAL (a
+specular band swept per-shape), GRIME (mottled corrosion), IRIDESCENT.
+Left and right wings run the SAME four ideas out of step — symmetry of
+form, none of substance. Two lessons: GRIME DOES NOT HAVE TO BE BROWN
+(the mottling is the material, the hue is free), and EMISSION ABOVE 1.0
+DOES NOT GLOW, IT CLIPS (chroma carries; glow is a post bloom pass).
 
-Open, all his calls: line-art vs emissive-on-black; **whether she is flat
-forever** (a being who is only ever a flat drawing is either a bug or the best
-idea in the design); then the idle where her plates refuse to agree, then the
-wing-lance telescoping edge-on.
+**ANIMATION** — no skeleton, so the PRIMITIVE is the unit. 19 independent
+2D transforms.
+- `idle` — every plate on its own incommensurate period, face at TRIPLE
+  frequency so it is permanently the least settled part of her
+- `flap` — wing squares move ONE AT A TIME with lag down the chain
+- `lance` — the gomu gomu. NOT a stretch: a chain of rotated triangles
+  stacking toward the player, telegraph (three blades gather and shiver)
+  then snap, hang, haul back. Zigzag TAPERS toward the player because a
+  lance converges on what it is aimed at.
+- `flinch` — Khaled's favourite. Registration failure spiked.
+- `disperse` — she is FLAT, so a plate turned edge-on STOPS EXISTING. She
+  does not break; she has no other side and vanishes by trying to show
+  it. Face last.
+
+**4D IS VETOED FOR HER, KEPT AS A CAPABILITY.** `hyper` mode does a real
+fourth coordinate + yw rotation + 4D->3D projection. The projection gives
+her DEPTH, which is the one thing she must not have — it made a different
+creature wearing her shapes. Try it on a being whose identity is not
+flatness.
+  - The bug worth remembering: rotating in `xw` gives
+    `w' = x*sin + w*cos`, and depth proportional to horizontal position
+    divided through by depth IS a 3D turntable. Khaled spotted the
+    degeneracy instantly ("all it looks like is a weird 3d rotation").
+    Rotate in a plane the object has no extent in.
+
+**Open:** engine side (one Y-axis billboard + clip playback; she is
+coplanar so there is no per-part work). Paper vs dark ground undecided.
 
 ## Standing threads
 - **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth
