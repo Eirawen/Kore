@@ -1,156 +1,209 @@
-#!/usr/bin/env python3
 """
-build_arbelos.py — a divine being assembled from primitives.
+build_arbelos.py — the angel of primitives.
 
-BUILT TO KHALED'S SPEC, not to a vibe. He broke the drawing down part by
-part (2026-08-05) after my first attempt came out, in his words, "incredibly
-jumbled" — because I had been scattering plates with noise instead of PLACING
-them. This version places every primitive exactly and adds disorder only as a
-later, separate layer.
+Divinity renders as NOISE because it is outside the compiler's vocabulary
+(codex/the-real-game.md). She is not a sculpted body; she is a set of flat
+primitives at exact positions — a FUNCTION, not a mesh. Which makes her the
+first creature in the bestiary that is easier to build than to model.
 
-    FACE   four primitives meeting at ONE centre point:
-             top    equilateral triangle, tip pointing DOWN into the centre
-             left   wide-base isosceles, VERY SMALL, pointing RIGHT
-             right  wide-base isosceles, VERY BIG, pointing LEFT
-             bottom equilateral rhombus pointing UP, overlapping the point
-    WINGS  overlapping, extremely thin rectangular PRISMS (boxes, not planes)
-    BODY   there is none. Two rounded squares beneath the wings — one
-           slightly smaller, one larger — which could be read as breasts but
-           are of course squares.
-    PINIONS 45-45-90 triangles of different sizes: upper pair pointing UP,
-           lower pair pointing DOWN.
+SHE IS A BILLBOARD, AND THAT IS THE DESIGN (Khaled, 2026-08-11): flat
+geometry that always faces the player. Walk around her and she does not turn
+— she HAS no other side. There is no angle from which she resolves, because
+there is nothing there to resolve. So every primitive is COPLANAR; z is used
+only for draw order, never for form.
 
-WHY THIS CREATURE IS BUILT AND NOT SCULPTED. From codex/the-real-game.md:
-demons are human-esque and MUNDANE because they live inside the symbolic
-language; divinity is OUTSIDE the compiler's vocabulary, so it renders as
-noise. You cannot look at one properly until your sight improves. She is
-therefore the one creature in the bestiary that is a FUNCTION rather than a
-mesh — and the interesting parameter is how resolved she is to your eye.
+Phase 1 of a perception ladder. One float — how resolved she is to the
+player's eye — should eventually carry her from this to a woman.
+
+Khaled's spec, part by part:
+  FACE     four primitives meeting at ONE point: a big equilateral triangle
+           above with its tip pointing DOWN into the centre; a VERY SMALL
+           wide-based isosceles left, pointing right; a VERY BIG one right,
+           pointing left; an equilateral rhombus below pointing UP, its top
+           vertex overlapping the meeting point.
+  WINGS    the overlapping squares. A chain that rises as it goes outward.
+  BODY     there is none. Two rounded squares beneath the wings, left
+           smaller, right larger. "They are of course, squares."
+  PINIONS  four 45-45-90 triangles of different sizes, CONNECTED BY LINES
+           that enclose a square between them. The lines overshoot their
+           corners, so what the eye reads is long blades crossing.
 """
-import bpy, bmesh, math, sys
+import bpy, bmesh, math, sys, os
 from mathutils import Vector
 
+OUT = r'C:\Users\kmessai\Downloads\Kore\Arbelos'
+Z = 0.0                      # she is COPLANAR. z is draw order only.
+DZ = 0.002                   # per-layer nudge so coplanar faces do not fight
 
-# ─────────────────────────────────────────────────────────────────────
-def _mesh(name, verts, coll, solid=0.0):
-    """A flat polygon in the XY plane, optionally given prism depth."""
+def _mesh(name, verts2, z):
     me = bpy.data.meshes.new(name)
     bm = bmesh.new()
-    bmv = [bm.verts.new((v[0], v[1], 0.0)) for v in verts]
-    f = bm.faces.new(bmv)
-    if solid > 0.0:
-        r = bmesh.ops.extrude_face_region(bm, geom=[f])
-        vs = [e for e in r['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=(0, 0, solid), verts=vs)
+    vs = [bm.verts.new((x, z, y)) for (x, y) in verts2]   # Y-up scene, flat in XZ
+    bm.faces.new(vs)
     bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new(name, me)
-    coll.objects.link(ob)
+    bpy.context.collection.objects.link(ob)
     return ob
 
+LW = 0.020                   # line weight. SHE IS LINE ART, NOT SILHOUETTE.
 
-def tri_apex(apex, base_c, half, coll, name, solid=0.0):
-    """Isosceles triangle: apex at `apex`, base centred on `base_c`,
-    half-width `half` measured perpendicular to the apex->base axis."""
-    a = Vector(apex); b = Vector(base_c)
-    d = (b - a); L = d.length
-    n = Vector((-d.y / L, d.x / L))
-    return _mesh(name, [a, b + n * half, b - n * half], coll, solid)
+def poly(name, pts, layer=0, lw=None):
+    """A shape is its OUTLINE, not its fill. Khaled's drawings are line art
+    and the effect depends on seeing THROUGH the overlaps — a filled version
+    destroys exactly the quality that makes her unresolvable. Each edge
+    becomes a thin quad, which also keeps the very thin triangles honest
+    (a centroid-inset outline collapses them)."""
+    w = LW if lw is None else lw
+    z = Z + layer * DZ
+    me = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    n = len(pts)
+    for i in range(n):
+        ax, ay = pts[i]; bx, by = pts[(i + 1) % n]
+        dx, dy = bx - ax, by - ay
+        L = math.hypot(dx, dy)
+        if L < 1e-9: continue
+        ux, uy = dx / L, dy / L
+        ax -= ux * w * 0.5; ay -= uy * w * 0.5      # extend to close corners
+        bx += ux * w * 0.5; by += uy * w * 0.5
+        px, py = -uy * w * 0.5, ux * w * 0.5
+        q = [(ax+px, ay+py), (bx+px, by+py), (bx-px, by-py), (ax-px, ay-py)]
+        vs = [bm.verts.new((x, z, y)) for (x, y) in q]
+        bm.faces.new(vs)
+    bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(ob)
+    return ob
 
+def rot(p, a, o=(0, 0)):
+    c, s = math.cos(a), math.sin(a)
+    x, y = p[0] - o[0], p[1] - o[1]
+    return (o[0] + x * c - y * s, o[1] + x * s + y * c)
 
-def right_iso(corner, leg, rot_deg, coll, name, solid=0.0):
-    """45-45-90 triangle: right angle at `corner`, legs of length `leg`,
-    the whole thing rotated by rot_deg."""
-    pts = [Vector((0, 0)), Vector((leg, 0)), Vector((0, leg))]
-    c, s = math.cos(math.radians(rot_deg)), math.sin(math.radians(rot_deg))
-    out = [(corner[0] + p.x*c - p.y*s, corner[1] + p.x*s + p.y*c) for p in pts]
-    return _mesh(name, out, coll, solid)
+def bar(name, a, b, w, layer=0, over=0.0):
+    """A LINE as geometry: a thin quad from a to b, optionally overshooting
+    both ends. The overshoot is what makes four edges read as long crossing
+    blades rather than a tidy box."""
+    ax, ay = a; bx, by = b
+    dx, dy = bx - ax, by - ay
+    L = math.hypot(dx, dy)
+    ux, uy = dx / L, dy / L
+    ax -= ux * over; ay -= uy * over
+    bx += ux * over; by += uy * over
+    px, py = -uy * w * 0.5, ux * w * 0.5
+    return poly(name, [(ax + px, ay + py), (bx + px, by + py),
+                       (bx - px, by - py), (ax - px, ay - py)], layer)
 
+def rounded_square(name, cx, cy, w, h_, r, layer=0, seg=6):
+    hw, hh = w * 0.5, h_ * 0.5; pts = []
+    for (sx, sy, a0) in ((1, 1, 0), (-1, 1, math.pi/2), (-1, -1, math.pi), (1, -1, 3*math.pi/2)):
+        ox, oy = cx + sx * (hw - r), cy + sy * (hh - r)
+        for i in range(seg + 1):
+            a = a0 + (math.pi / 2) * i / seg
+            pts.append((ox + r * math.cos(a), oy + r * math.sin(a)))
+    return poly(name, pts, layer)
 
-def rounded_square(centre, w, h, r, coll, name, seg=4, solid=0.0):
-    pts = []
-    corners = [(w/2-r, h/2-r, 0), (-w/2+r, h/2-r, 90),
-               (-w/2+r, -h/2+r, 180), (w/2-r, -h/2+r, 270)]
-    for cx, cy, a0 in corners:
-        for k in range(seg + 1):
-            a = math.radians(a0 + 90.0 * k / seg)
-            pts.append((centre[0] + cx + r*math.cos(a),
-                        centre[1] + cy + r*math.sin(a)))
-    return _mesh(name, pts, coll, solid)
+bpy.ops.wm.read_factory_settings(use_empty=True)
+parts = []
 
+# ── FACE ──────────────────────────────────────────────────────────
+# Four primitives, one meeting point. The rhombus overlaps that point.
+C = (-0.47, 5.22)
+S = 1.18
+top = S * 1.15
+parts += [poly('face_top', [C, (C[0]-top*0.5, C[1]+top*0.87), (C[0]+top*0.5, C[1]+top*0.87)], 3)]
+sm = S * 0.34
+parts += [poly('face_left_small', [C, (C[0]-sm, C[1]+sm*0.62), (C[0]-sm*0.86, C[1]-sm*0.72)], 4)]
+bg = S * 1.02
+parts += [poly('face_right_big', [C, (C[0]+bg*0.94, C[1]+bg*0.80), (C[0]+bg*0.66, C[1]-bg*0.30)], 2)]
+rh = S * 0.46
+parts += [poly('face_rhombus', [(C[0], C[1]+rh*0.30), (C[0]+rh*0.62, C[1]-rh*0.62),
+                                (C[0], C[1]-rh*1.72), (C[0]-rh*0.62, C[1]-rh*0.62)], 5)]
 
-def rect(centre, w, h, coll, name, solid=0.0):
-    x, y = centre
-    return _mesh(name, [(x-w/2, y-h/2), (x+w/2, y-h/2),
-                        (x+w/2, y+h/2), (x-w/2, y+h/2)], coll, solid)
+# ── WINGS: four RECTANGLES per side, wider than tall, stepping
+# down and inward, each overlapping its neighbour by about a third.
+WING = [(0.79, 0.49), (0.74, 0.60), (0.73, 0.64), (0.56, 0.42)]   # outer->inner
+STEP_IN, STEP_DN = 0.44, 0.28
+for side in (-1, 1):
+    x = side * 2.16; y = 5.30
+    for i, (w, h) in enumerate(WING):
+        nm = 'wing_%s_%d' % ('L' if side < 0 else 'R', i)
+        parts += [poly(nm, [(x-w/2, y-h/2), (x+w/2, y-h/2),
+                            (x+w/2, y+h/2), (x-w/2, y+h/2)], 1)]
+        x -= side * STEP_IN
+        y -= STEP_DN
 
+# ── NO BODY. Two rounded squares. Left smaller, right larger. ─────
+parts += [rounded_square('sq_left',  -1.05, 3.51, 1.15, 1.34, 0.28, 6)]
+parts += [rounded_square('sq_right',  0.41, 3.42, 1.46, 1.57, 0.32, 6)]
 
-# ─────────────────────────────────────────────────────────────────────
-def build(coll=None):
-    for o in list(bpy.data.objects):
-        if o.type == 'MESH':
-            bpy.data.objects.remove(o, do_unlink=True)
-    coll = coll or bpy.context.scene.collection
-    P = {}
-    THIN = 0.03                      # prism depth: "extremely thin"
+# ── THE LOWER STRUCTURE IS FOUR LINES. Everything else falls out.
+#
+# Two roughly-horizontal segments and two roughly-vertical ones, each
+# tilted a few degrees. Where they cross they fence off a quadrilateral —
+# the "square circumscribed between them". Each line then OVERSHOOTS its
+# crossings to a free end, and joining the two free ends at each corner to
+# their crossing point gives the four triangles. They differ in size only
+# because the overshoots differ in length. Nothing here is placed
+# independently: four segments, and the square and all four triangles are
+# consequences.
+H1 = ((-2.61, 3.28), (3.42, 3.07))      # upper horizontal
+H2 = ((-3.95, 1.52), (3.71, 0.92))      # lower horizontal
+V1 = ((-1.61, 4.18), (-2.12, 0.21))     # left vertical
+V2 = (( 1.62, 4.41), ( 1.31, 0.48))     # right vertical
 
-    # ── FACE ── four primitives, one meeting point ───────────────────
-    C = Vector((0.0, 2.72))
-    face = []
-    # top: equilateral, tip DOWN at C, base above
-    side = 1.05
-    hgt = side * math.sqrt(3) / 2
-    face.append(_mesh('face_top', [C, (C.x - side/2, C.y + hgt),
-                                   (C.x + side/2, C.y + hgt)], coll, THIN))
-    # left: wide-base isosceles, VERY SMALL, pointing right (apex at C)
-    face.append(tri_apex(C, (C.x - 0.40, C.y + 0.10), 0.20, coll,
-                         'face_left', THIN))
-    # right: wide-base isosceles, VERY BIG, pointing left (apex at C)
-    face.append(tri_apex(C, (C.x + 0.62, C.y + 0.72), 0.42, coll,
-                         'face_right', THIN))
-    # bottom: equilateral rhombus pointing UP, overlapping the point
-    rh = 0.34
-    face.append(_mesh('face_rhombus',
-                      [(C.x, C.y + 0.10), (C.x + rh, C.y - 0.42),
-                       (C.x, C.y - 0.94), (C.x - rh, C.y - 0.42)], coll, THIN))
-    P['face'] = face
+def cross(p, q):
+    (x1,y1),(x2,y2) = p; (x3,y3),(x4,y4) = q
+    d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+    a = x1*y2 - y1*x2; b = x3*y4 - y3*x4
+    return ((a*(x3-x4) - (x1-x2)*b)/d, (a*(y3-y4) - (y1-y2)*b)/d)
 
-    # ── WINGS ── overlapping thin prisms, rising as they go outward ──
-    N = 5
-    wings = []
-    for side_i in (-1, 1):
-        for i in range(N):
-            t = i / (N - 1.0)                 # 0 = inner, 1 = outer
-            s = 0.42 + 0.16 * t               # outer plates a touch larger
-            x = side_i * (0.62 + t * 1.52)
-            y = 1.86 + t * 0.62               # OUTER IS HIGHER
-            ob = rect((x, y), s, s, coll,
-                      'wing_%s_%d' % ('L' if side_i < 0 else 'R', i), THIN)
-            ob['part'] = 'wing'; ob['side'] = side_i; ob['idx'] = i
-            wings.append(ob)
-    P['wing'] = wings
+TL = cross(H1, V1); TR = cross(H1, V2)
+BR = cross(H2, V2); BL = cross(H2, V1)
 
-    # ── "BODY" ── there is none. Two rounded squares. ────────────────
-    P['squares'] = [
-        rounded_square((-0.52, 1.16), 0.94, 1.04, 0.20, coll, 'sq_small', solid=THIN),
-        rounded_square(( 0.58, 1.04), 1.14, 1.26, 0.24, coll, 'sq_large', solid=THIN),
-    ]
+parts += [poly('quad', [TL, TR, BR, BL], 0)]                    # the square
+parts += [poly('tri_UL', [H1[0], V1[0], TL], 0)]                # free end, free end, crossing
+parts += [poly('tri_UR', [H1[1], V2[0], TR], 0)]
+parts += [poly('tri_LL', [H2[0], V1[1], BL], 0)]
+parts += [poly('tri_LR', [H2[1], V2[1], BR], 0)]
 
-    # ── PINIONS ── 45-45-90s: upper pair UP, lower pair DOWN ─────────
-    # PINIONS. Right-angled but STRETCHED — in the drawing they are long thin
-    # blades that sweep outward and CROSS each other, not compact triangles.
-    # Compact ones tiled into a box at the bottom, which read as furniture.
-    # Upper pair rise outward; lower pair are larger and fall outward.
-    P['pinion'] = [
-        _mesh('pin_up_L', [(-2.55, 1.30), (0.30, 0.30), (-0.55, 0.22)], coll, THIN),
-        _mesh('pin_up_R', [( 2.62, 1.16), (-0.22, 0.20), (0.62, 0.10)], coll, THIN),
-        _mesh('pin_dn_L', [(-3.05, 0.05), (0.85, -0.55), (-1.05, -1.35)], coll, THIN),
-        _mesh('pin_dn_R', [( 3.15, -0.10), (-0.70, -0.62), (1.25, -1.48)], coll, THIN),
-    ]
+# ── one flat emissive material, wireframe-ish look comes from the shapes
+mat = bpy.data.materials.new('arbelos_line')
+mat.use_nodes = True
+nt = mat.node_tree; nt.nodes.clear()
+em = nt.nodes.new('ShaderNodeEmission'); em.inputs[0].default_value = (0.02, 0.02, 0.025, 1)
+out = nt.nodes.new('ShaderNodeOutputMaterial')
+nt.links.new(em.outputs[0], out.inputs[0])
+for o in parts: o.data.materials.append(mat)
 
-    n = sum(len(v) for v in P.values())
-    print('  built %d primitives: %s' % (n, {k: len(v) for k, v in P.items()}))
-    return P
+bpy.ops.object.select_all(action='DESELECT')
+for o in parts: o.select_set(True)
+bpy.context.view_layer.objects.active = parts[0]
+bpy.ops.object.join()
+arb = bpy.context.active_object
+arb.name = 'Arbelos_Phase1'
 
+# ── render: front, plus three yaws to prove the billboard case ────
+sc = bpy.context.scene
+sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in \
+    [i.identifier for i in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
+sc.render.film_transparent = False
+w = bpy.data.worlds.new('W'); w.use_nodes = True
+w.node_tree.nodes['Background'].inputs[0].default_value = (1, 1, 1, 1)
+w.node_tree.nodes['Background'].inputs[1].default_value = 1.0
+sc.world = w
+sc.render.resolution_x = sc.render.resolution_y = 900
 
-if __name__ == '__main__':
-    build()
+cd = bpy.data.cameras.new('C'); cd.type = 'ORTHO'; cd.ortho_scale = 9.6
+cam = bpy.data.objects.new('C', cd); sc.collection.objects.link(cam); sc.camera = cam
+tgt = Vector((0, 0, 3.1))
+for nm, yaw in (('front', 0), ('yaw20', 20), ('yaw45', 45), ('yaw80', 80)):
+    a = math.radians(yaw)
+    cam.location = tgt + Vector((math.sin(a)*10, -math.cos(a)*10, 0))
+    cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    sc.render.filepath = os.path.join(OUT, 'arbelos_%s.png' % nm)
+    bpy.ops.render.render(write_still=True)
+
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'arbelos_phase1.glb'),
+                          export_format='GLB', use_selection=False)
+print('PARTS %d  ->  %s' % (len(parts), OUT))
