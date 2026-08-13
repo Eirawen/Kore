@@ -627,20 +627,53 @@ if MODE == 'ext':
 # JUDGEMENT needs a blade. She does not SUMMON a weapon — divinity does
 # not reach for a tool — she REARRANGES HERSELF INTO ONE. These are her
 # own substance: plates that leave her, climb, and lock into an edge.
-BLADE_N = 5
-BLADE = []
-bsrc = next(o for o in bpy.data.objects if o.name.startswith('face_right_big'))
-# WARM METALS ONLY. Her body is deliberate material mismatch; a WEAPON
-# has to read as ONE OBJECT, and seven unrelated substances fragment it
-# into confetti. Gold, white-hot, molten, brass.
-BLADE_MATS = ['face_top', 'face_left_small', 'sq_right', 'tri_LL', 'face_top']
-for k in range(BLADE_N):
-    c = bsrc.copy(); c.data = bsrc.data.copy(); c.name = 'blade_%02d' % k
-    bpy.context.collection.objects.link(c)
-    c.data.materials.clear()
-    c.data.materials.append(DIVINE[BLADE_MATS[k % len(BLADE_MATS)]]('bl_%d' % k))
-    c.scale = (0.001, 0.001, 0.001)
-    BLADE.append(c)
+# JUDGEMENT'S SWORD. Five copies of one triangle was the tranching
+# mistake again, applied to a prop: if SHE is an amalgamation of strange
+# geometry, her weapon has to be one too. So it is assembled from
+# mismatched primitives — a rhombus for the blade's belly, a hairline bar
+# for the fuller, odd squares on the crossguard tips, corrosion on the
+# grip — which also means that during the GATHER it is visibly a cloud of
+# unrelated shapes that happen to lock into a sword.
+#
+# Built point-DOWN: local +Z runs from the tip up to the pommel.
+def _rect(x0, z0, x1, z1):
+    return [(x0, z0), (x1, z1)]
+
+SWORD_SPEC = [
+  # name         points (sword-local, x from centre, z from the point)
+  ('sw_point',   [(0.0, 0.0), (-0.36, 1.05), (0.36, 1.05)],              'face_left_small'),
+  ('sw_blade_lo',[(-0.36, 1.02), (0.36, 1.02), (0.52, 3.25), (-0.52, 3.25)], 'face_top'),
+  ('sw_belly',   [(0.0, 2.85), (0.68, 4.10), (0.0, 5.35), (-0.68, 4.10)], 'sq_right'),
+  ('sw_blade_hi',[(-0.44, 4.95), (0.44, 4.95), (0.44, 6.45), (-0.44, 6.45)], 'tri_LL'),
+  ('sw_fuller',  [(-0.085, 0.95), (0.085, 0.95), (0.085, 6.30), (-0.085, 6.30)], 'wing_R_2'),
+  ('sw_guard',   [(-1.38, 6.42), (1.38, 6.42), (1.30, 6.92), (-1.30, 6.92)], 'face_top'),
+  ('sw_gtip_l',  [(-1.86, 6.40), (-1.42, 6.40), (-1.42, 6.96), (-1.86, 6.96)], 'wing_L_2'),
+  ('sw_gtip_r',  [(1.42, 6.40), (1.86, 6.40), (1.86, 6.96), (1.42, 6.96)],   'tri_UR'),
+  ('sw_grip',    [(-0.23, 6.88), (0.23, 6.88), (0.23, 8.22), (-0.23, 8.22)], 'wing_R_3'),
+  ('sw_pommel',  [(0.0, 8.14), (0.40, 8.58), (0.0, 9.02), (-0.40, 8.58)],   'sq_left'),
+]
+SWORD_LEN = 9.02
+
+BLADE, BLADE_OFF = [], {}
+for nm, pts, matkey in SWORD_SPEC:
+    cx = sum(q[0] for q in pts) / len(pts)
+    cz = sum(q[1] for q in pts) / len(pts)
+    me = bpy.data.meshes.new(nm)
+    bm = bmesh.new()
+    vs = [bm.verts.new((q[0] - cx, 0.0, q[1] - cz)) for q in pts]
+    fc = bm.faces.new(vs)
+    r = bmesh.ops.extrude_face_region(bm, geom=[fc])
+    mv = [e for e in r['geom'] if isinstance(e, bmesh.types.BMVert)]
+    bmesh.ops.translate(bm, verts=mv, vec=(0.0, 0.055, 0.0))
+    bmesh.ops.translate(bm, verts=bm.verts, vec=(0.0, -0.0275, 0.0))
+    bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(nm, me)
+    bpy.context.collection.objects.link(ob)
+    ob.data.materials.append(DIVINE[matkey]('sw_' + nm))
+    ob.scale = (0.001, 0.001, 0.001)
+    BLADE.append(ob)
+    BLADE_OFF[ob.name] = Vector((cx, 0.0, cz))     # where it sits in the sword
+BLADE_N = len(BLADE)
 
 ALL = [o for o in bpy.data.objects if o.type == 'MESH' and o not in EXTRA]
 
@@ -854,46 +887,46 @@ def disperse(o, i, t):
 # made of her own plates: they climb, lock into an edge above her, hang
 # (that hang IS the dodge window), then fall — INTEGRATED, not eased, so
 # it arrives with weight instead of floating down.
-BLADE_TOP  = 13.6
-BLADE_GAP  = 2.15      # segments must TILE, not leave gaps
-BLADE_REST = 0.55          # where the point ends up: ground level
+BLADE_TOP  = 13.9      # where the POINT starts, above the target
+BLADE_REST = 0.85      # and where it ends up: in the target
 
 def judgement(o, i, t):
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    T_CALL, T_LOCK, T_HANG, T_FALL, T_HIT = 0.22, 0.36, 0.48, 0.58, 0.66
+    T_CALL, T_LOCK, T_HANG, T_FALL, T_HIT = 0.22, 0.38, 0.50, 0.60, 0.67
 
     if o in BLADE:
-        k = BLADE.index(o)
-        if t < T_CALL * 0.35:
+        if t < T_CALL * 0.30:
             o.scale = (0.001, 0.001, 0.001); return
-        # gather: plates arrive scattered, then converge into an edge
-        g = min(1.0, max(0.0, (t - T_CALL*0.35) / (T_LOCK - T_CALL*0.35)))
-        g = g ** 0.7
-        ang = JIT[o.name][0] if o.name in JIT else k * 1.7
-        sx = math.cos(ang) * 3.4 * (1 - g)
-        sz = math.sin(ang) * 2.2 * (1 - g)
-        # fall: v0=0, z = z0 - 1/2 g t^2, so it ACCELERATES like a mass
+        # GATHER: a cloud of unrelated shapes that locks into a sword
+        g = min(1.0, max(0.0, (t - T_CALL*0.30) / (T_LOCK - T_CALL*0.30))) ** 0.7
+        j = BLADE.index(o)
+        ang = j * 2.399                                  # golden-angle spread
+        sx = math.cos(ang) * 4.2 * (1 - g)
+        sz = math.sin(ang) * 3.0 * (1 - g)
+
+        # FALL: integrated, and the constant is derived so the POINT lands
         drop = 0.0
         if t > T_HANG:
-            u = min(1.0, (t - T_HANG) / (T_FALL - T_HANG + 0.001))
-            # Constant chosen so the POINT actually reaches the ground:
-            # from BLADE_TOP 13.6 to BLADE_REST 0.55 is a 13.05 drop, and
-            # 0.5*9.81*0.62^2 = 1.885, so C = 6.92. At 4.6 it stopped 4.9
-            # units short and the sword hung in the air and faded — all
-            # wind-up, no landing.
-            drop = 0.5 * 9.81 * (u * 0.62) ** 2 * 7.0
-        top = BLADE_TOP - drop
-        z = max(BLADE_REST + k * BLADE_GAP, top - k * BLADE_GAP)
-        o.location = Vector((sx * 0.6, 0.0, z + sz))
-        o.rotation_euler = (0.0, math.radians(180 * (1 - g) * (1 if k % 2 else -1)), 0.0)
-        w = 0.34 + 1.05 * (k / float(BLADE_N - 1))        # TAPERS TO A POINT
-        h = 2.55                                          # tall enough to tile
-        o.scale = (w * g, 1.0, h * g)
-        if t > T_HIT:                                      # shatter at the base
+            u = min(1.0, (t - T_HANG) / (T_FALL - T_HANG))
+            need = BLADE_TOP - BLADE_REST
+            drop = need * (u ** 2)                       # accelerating, arrives exactly
+        point_z = BLADE_TOP - drop
+
+        off = BLADE_OFF[o.name]
+        o.location = Vector((TARGET_POS.x + off.x * g + sx,
+                             TARGET_POS.y,
+                             point_z + off.z * g + sz))
+        o.rotation_euler = (0.0, math.radians(210 * (1 - g) * (1 if j % 2 else -1)), 0.0)
+        o.scale = (g, 1.0, g)
+
+        if t > T_HIT:                                    # come apart on impact
             e = (t - T_HIT) / (1.0 - T_HIT)
-            o.location.z += e * e * 1.2 * k * 0.3
-            o.location.x += math.cos(ang) * e * e * 5.0
-            o.scale = (w*g*(1-e*0.8), 1.0, h*g*(1-e*0.8))
+            o.location.x += math.cos(ang) * e * e * 5.5
+            o.location.z += math.sin(ang) * e * e * 2.6 + e * e * 1.1
+            o.location.y += math.sin(ang * 1.7) * e * e * 2.2
+            o.rotation_euler = (0.0, math.radians(160 * e * (1 if j % 2 else -1)), 0.0)
+            k = max(0.02, g * (1.0 - e * 0.9))
+            o.scale = (k, 1.0, k)
         return
 
     # HER: sweep up to call it, drive down to land it
@@ -905,12 +938,12 @@ def judgement(o, i, t):
         o.location.z += 0.85
     elif t < T_HIT:
         u = (t - T_HANG) / (T_HIT - T_HANG)
-        o.location.z += 0.85 - u * 1.65                    # DRIVES it down
+        o.location.z += 0.85 - u * 1.65
         o.rotation_euler[1] += math.radians(-u * 5.0)
     else:
         e = (t - T_HIT) / (1.0 - T_HIT)
-        o.location.z += -0.80 * (1 - e ** 0.55)            # settle back up
-        o.location.x += math.sin(e * 22.0) * 0.10 * (1 - e) # ring from the impact
+        o.location.z += -0.80 * (1 - e ** 0.55)
+        o.location.x += math.sin(e * 22.0) * 0.10 * (1 - e)
 
 # ── DODGE ─────────────────────────────────────────────────────────
 # She cannot sidestep and she cannot turn — she is a billboard. But she
