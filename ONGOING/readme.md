@@ -120,7 +120,7 @@ LOD0/1/2 are clean before building a decimator.
 ## ARBELOS — the angel of primitives (2026-08-05..11)
 
 `Kore/tools/divinity/build_arbelos.py`. One file, four modes via
-`tools/divinity/.arbcfg`: `still` / `anim` / `fp` / `hyper`.
+`tools/divinity/.arbcfg`: `still` / `anim` / `fp` / `ext` / `salami` / `hyper`.
 Output: `Downloads/Kore/Arbelos/`.
 
 **FORM.** 19 coplanar primitives, built to Khaled's part-by-part spec. The
@@ -129,6 +129,18 @@ quadrilateral, and joining each corner's two free ends to their crossing
 point gives the four triangles. Nothing down there is placed
 independently. She is a BILLBOARD and that is the design: walk around her
 and she does not turn, because she HAS no other side.
+
+**THE SALAMI (`THICK = 0.040`).** Not zero and not 3D — the thickness of
+GOLD LEAF ON AN ICON, ~1/150th of her height. Measured with the `salami`
+grid at 90/78/52 deg against 0.0 / 0.04 / 0.11: at 78 and 52 the three are
+INDISTINGUISHABLE, so the depth costs nothing anywhere you would normally
+see her. It only pays out at the one angle that was broken. At zero width
+edge-on she is a faint smudge; at leaf she is a THIN LINE OF HER OWN
+PALETTE — magenta, cyan, gold — a blade of stained glass. Also fixes the
+dodge and disperse reading as renderer failures, gives the metals and
+grime an edge to catch, and guards against the real hazard: every
+billboard lags a frame or two behind fast camera rotation, and a
+zero-width figure FLICKERS COMPLETELY OUT on those frames.
 
 **MATERIAL MISMATCH IS THE IDEA**, not colour variety. Four behaviours
 interleaved so no two neighbours are the same substance: FLAT, METAL (a
@@ -147,6 +159,19 @@ DOES NOT GLOW, IT CLIPS (chroma carries; glow is a post bloom pass).
   stacking toward the player, telegraph (three blades gather and shiver)
   then snap, hang, haul back. Zigzag TAPERS toward the player because a
   lance converges on what it is aimed at.
+- `judgement` — the sword. She does not SUMMON a weapon, she REARRANGES
+  HERSELF INTO ONE: plates climb, lock into an edge above her, hang (that
+  hang is the dodge window), then fall BALLISTIC and shatter at the base.
+  Warm metals only — her body is deliberate material mismatch but a WEAPON
+  must read as one object.
+- `dodge` — she cannot sidestep and cannot turn, but she is FLAT, so she
+  presents ZERO CROSS-SECTION. Centre-out lag, so she WIPES out of
+  existence rather than flipping. The inverse of flinch: flinch is the
+  image disturbed, dodge is the image briefly ABSENT.
+- `regard` — she snaps into PERFECT COHERENCE for eight frames, then comes
+  apart. Everything else she does is instability, so stillness is the most
+  threatening thing available to her. She looks at you by choosing to be
+  legible.
 - `flinch` — Khaled's favourite. Registration failure spiked.
 - `disperse` — she is FLAT, so a plate turned edge-on STOPS EXISTING. She
   does not break; she has no other side and vanishes by trying to show
@@ -162,6 +187,15 @@ flatness.
     divided through by depth IS a 3D turntable. Khaled spotted the
     degeneracy instantly ("all it looks like is a weird 3d rotation").
     Rotate in a plane the object has no extent in.
+
+**`ext` MODE IS NOW STANDARD FOR ANY NEW ATTACK.** An outside observer with
+a target cube and a ground plane, ~38 deg off her facing axis (dead side-on
+she has zero width and only the attack renders). It immediately caught what
+the authoring view could not: the lance has real travel time across open
+ground, and the blades are SMALLER than the target in absolute terms —
+they are sized so perspective fills the player's screen at arm's length, so
+an observer sees a modest attack while the person being hit sees the sky
+fall. Check every attack from outside before calling it done.
 
 **Open:** engine side (one Y-axis billboard + clip playback; she is
 coplanar so there is no per-part work). Paper vs dark ground undecided.

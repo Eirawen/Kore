@@ -47,6 +47,14 @@ def _mesh(name, verts2, z):
 
 FILL_MODE = [False]
 Z_BASE = [0.0]
+# THE SALAMI. She is not 3D and she is not zero — she is the thickness of
+# GOLD LEAF ON AN ICON: the depth of paint on a surface, ~1/150th of her
+# height. Zero width makes the dodge and the disperse read as renderer
+# failures rather than as vanishing, robs the metals and the grime of an
+# edge to catch, and — the one that would actually bite — every billboard
+# lags a frame or two behind fast camera rotation, so a zero-width figure
+# FLICKERS COMPLETELY OUT on those frames instead of merely going thin.
+THICK = [0.040]
 LW = 0.014                   # line weight. SHE IS LINE ART, NOT SILHOUETTE.
 
 def poly(name, pts, layer=0, lw=None):
@@ -64,7 +72,12 @@ def poly(name, pts, layer=0, lw=None):
     bm = bmesh.new()
     if FILL_MODE[0]:
         vs = [bm.verts.new((x, z, y)) for (x, y) in pts]
-        bm.faces.new(vs)
+        f = bm.faces.new(vs)
+        if THICK[0] > 1e-6:
+            r = bmesh.ops.extrude_face_region(bm, geom=[f])
+            moved = [e for e in r['geom'] if isinstance(e, bmesh.types.BMVert)]
+            bmesh.ops.translate(bm, verts=moved, vec=(0.0, THICK[0], 0.0))
+            bmesh.ops.translate(bm, verts=bm.verts, vec=(0.0, -THICK[0]*0.5, 0.0))
         bm.to_mesh(me); bm.free()
         ob = bpy.data.objects.new(name, me)
         bpy.context.collection.objects.link(ob)
@@ -378,26 +391,38 @@ if MODE == 'fp':
     sc.render.resolution_x, sc.render.resolution_y = 1280, 720
 elif MODE == 'hyper':
     sc.render.resolution_x = sc.render.resolution_y = 720
+elif MODE == 'ext':
+    sc.render.resolution_x, sc.render.resolution_y = 1120, 700
 else:
     sc.render.resolution_x = sc.render.resolution_y = 1400
 cd = bpy.data.cameras.new('C')
 if MODE == 'still':
     cd.type = 'ORTHO'; cd.ortho_scale = 9.6
+elif MODE == 'ext':
+    cd.type = 'ORTHO'; cd.ortho_scale = 16.0
 elif MODE == 'fp':
     # The real test of an attack is not whether it photographs well — it is
     # whether a player can READ IT IN TIME TO MOVE. Eye height, combat
     # distance, game field of view, 16:9.
     cd.type = 'PERSP'; cd.lens = 22.0          # ~80 deg horizontal
 else:
-    cd.type = 'PERSP'; cd.lens = 42.0
+    cd.type = 'PERSP'; cd.lens = 33.0
 cam = bpy.data.objects.new('C', cd); sc.collection.objects.link(cam); sc.camera = cam
 tgt = Vector((0, 0, 3.1))
-if MODE == 'fp':
+if MODE == 'ext':
+    # ~38 deg OFF her facing axis, not 90. Dead side-on she has ZERO WIDTH
+    # and does not render at all — true to what she is, but it means the
+    # frame shows only the attack. Off-axis she is foreshortened but
+    # present, so her body and the projectile are legible together.
+    tgt = Vector((0.0, -4.6, 2.10))
+    cam.location = Vector((7.4, -13.2, 7.4))
+elif MODE == 'fp':
     tgt = Vector((0.0, 0.0, 2.80))             # only a mild tilt up, so the
                                                # incoming lance stays IN FRAME
     cam.location = Vector((0.0, -9.5, 1.70))   # player eye height, closer
 else:
     cam.location = tgt + Vector((0, -10 if MODE == 'still' else -13.5, 0))
+    if MODE == 'anim': cam.location.z += 1.1
 cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
 
 for o in list(bpy.data.objects):
@@ -416,6 +441,26 @@ if MODE == 'still':
     raise SystemExit
 
 # ══════════════════════════════════════════════════════════════════
+if MODE == 'salami':
+    import shutil
+    for th, tag in ((0.0, 'zero'), (0.040, 'leaf'), (0.110, 'thick')):
+        for ang, aname in ((90, 'edge'), (78, 'near'), (52, 'three_q')):
+            for o in list(bpy.data.objects):
+                if o.type == 'MESH': bpy.data.objects.remove(o, do_unlink=True)
+            THICK[0] = th
+            FILL_MODE[0] = True;  Z_BASE[0] = 0.0
+            paint_divine(build(True))
+            FILL_MODE[0] = False; Z_BASE[0] = -0.10
+            paint_flat(build(False), (0.10, 0.02, 0.16, 1), 'ink_%s_%d' % (tag, ang))
+            r = math.radians(ang)
+            tg = Vector((0, 0, 3.1))
+            cam.location = tg + Vector((math.sin(r) * 12.5, -math.cos(r) * 12.5, 0.9))
+            cam.rotation_euler = (tg - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            sc.render.filepath = os.path.join(OUT, 'salami_%s_%s.png' % (tag, aname))
+            bpy.ops.render.render(write_still=True)
+    print('SALAMI grid done')
+    raise SystemExit
+
 # HYPER — 4D projection. VETOED FOR ARBELOS, KEPT AS A CAPABILITY.
 #
 # Khaled, 2026-08-11: "Veto'ing it. I preferred the 2d versions
@@ -452,6 +497,26 @@ if MODE == 'still':
 # DOUBLE ROTATION, and the rates are incommensurate (golden ratio). A
 # single rotation plane has a 3D lookalike; a double rotation does not.
 # You cannot produce this by spinning anything, in any way, in 3D.
+if MODE == 'salami':
+    import shutil
+    for th, tag in ((0.0, 'zero'), (0.040, 'leaf'), (0.110, 'thick')):
+        for ang, aname in ((90, 'edge'), (78, 'near'), (52, 'three_q')):
+            for o in list(bpy.data.objects):
+                if o.type == 'MESH': bpy.data.objects.remove(o, do_unlink=True)
+            THICK[0] = th
+            FILL_MODE[0] = True;  Z_BASE[0] = 0.0
+            paint_divine(build(True))
+            FILL_MODE[0] = False; Z_BASE[0] = -0.10
+            paint_flat(build(False), (0.10, 0.02, 0.16, 1), 'ink_%s_%d' % (tag, ang))
+            r = math.radians(ang)
+            tg = Vector((0, 0, 3.1))
+            cam.location = tg + Vector((math.sin(r) * 12.5, -math.cos(r) * 12.5, 0.9))
+            cam.rotation_euler = (tg - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            sc.render.filepath = os.path.join(OUT, 'salami_%s_%s.png' % (tag, aname))
+            bpy.ops.render.render(write_still=True)
+    print('SALAMI grid done')
+    raise SystemExit
+
 if MODE == 'hyper':
     import math as _m
     # These three numbers decide whether she SHIMMERS or DISINTEGRATES.
@@ -536,8 +601,48 @@ for k in range(LANCE_N):
     c.scale = (0.001, 0.001, 0.001)
     SEG.append(c)
 
-CAM_POS = Vector((0.0, -9.5, 1.70)) if MODE == 'fp' else Vector((0.0, -13.5, 3.1))
-ALL = [o for o in bpy.data.objects if o.type == 'MESH']
+# Where the PLAYER is. In fp that is the camera; in ext it is the target
+# cube and the camera stands off to the side. Attacks aim at the player,
+# never at the viewer — which only becomes a distinction in ext mode.
+TARGET_POS = (Vector((0.0, -9.0, 1.05)) if MODE == 'ext' else
+              Vector((0.0, -9.5, 1.70)) if MODE == 'fp' else
+              Vector((0.0, -13.5, 3.1)))
+CAM_POS = TARGET_POS
+EXTRA = []
+if MODE == 'ext':
+    # the player, standing where the player stands
+    bpy.ops.mesh.primitive_cube_add(size=1.55, location=(0.0, -9.0, 0.78))
+    cube = bpy.context.active_object; cube.name = 'TARGET'
+    mc, ntc, emc = _mat('target')
+    emc.inputs[0].default_value = (0.55, 0.58, 0.62, 1.0)
+    cube.data.materials.append(mc)
+    # ground, so depth is READABLE — without it nothing has a position
+    bpy.ops.mesh.primitive_plane_add(size=46.0, location=(0.0, -6.0, 0.0))
+    gp = bpy.context.active_object; gp.name = 'GROUND'
+    mg, ntg, emg = _mat('ground')
+    emg.inputs[0].default_value = (0.055, 0.052, 0.070, 1.0)
+    gp.data.materials.append(mg)
+    EXTRA = [cube, gp]
+
+# JUDGEMENT needs a blade. She does not SUMMON a weapon — divinity does
+# not reach for a tool — she REARRANGES HERSELF INTO ONE. These are her
+# own substance: plates that leave her, climb, and lock into an edge.
+BLADE_N = 5
+BLADE = []
+bsrc = next(o for o in bpy.data.objects if o.name.startswith('face_right_big'))
+# WARM METALS ONLY. Her body is deliberate material mismatch; a WEAPON
+# has to read as ONE OBJECT, and seven unrelated substances fragment it
+# into confetti. Gold, white-hot, molten, brass.
+BLADE_MATS = ['face_top', 'face_left_small', 'sq_right', 'tri_LL', 'face_top']
+for k in range(BLADE_N):
+    c = bsrc.copy(); c.data = bsrc.data.copy(); c.name = 'blade_%02d' % k
+    bpy.context.collection.objects.link(c)
+    c.data.materials.clear()
+    c.data.materials.append(DIVINE[BLADE_MATS[k % len(BLADE_MATS)]]('bl_%d' % k))
+    c.scale = (0.001, 0.001, 0.001)
+    BLADE.append(c)
+
+ALL = [o for o in bpy.data.objects if o.type == 'MESH' and o not in EXTRA]
 
 # rotation/scale must happen about each SHAPE's own centre, not world zero
 bpy.ops.object.select_all(action='DESELECT')
@@ -600,6 +705,7 @@ JIT = {o.name: (random.uniform(0, 6.283), random.uniform(0, 6.283),
                 random.uniform(0.6, 1.4)) for o in ALL}
 
 def idle(o, i, t):
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     pa, pb, amp = JIT[o.name]
     fast = 3.0 if o in FACE else 1.0
@@ -629,7 +735,7 @@ LANCE_ANCHOR = Vector((1.05, 0.0, 2.75))
 # on your eye line reads as a threat you have to leave.
 def _aim_frame():
     a = LANCE_ANCHOR
-    d = (CAM_POS - a); d.normalize()
+    d = (TARGET_POS - a); d.normalize()
     r = d.cross(Vector((0, 0, 1)));  r.normalize()
     u = r.cross(d);                  u.normalize()
     return d, r, u
@@ -698,6 +804,7 @@ def lance(o, i, t):
 # a travelling wave down the chain, so the wing never holds a shape. The
 # rest of her breathes underneath it.
 def flap(o, i, t):
+    if o in SEG or o in BLADE: o.scale = (0.001,0.001,0.001); return
     ph = 2 * math.pi * t
     if '_L_' in o.name or '_R_' in o.name:
         k = plate_index(o)
@@ -715,6 +822,7 @@ def flap(o, i, t):
 # Registration failure, spiked. Every plate jumps out from the centre
 # and comes back — the image is DISTURBED, not the body injured.
 def flinch(o, i, t):
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     d = math.exp(-4.2 * t) * math.sin(2*math.pi*t*3.4)
     ang = JIT[o.name][0]
@@ -730,6 +838,7 @@ def flinch(o, i, t):
 # plate, and the face is LAST because the face is the last thing to admit
 # it was never there.
 def disperse(o, i, t):
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     order = 0.72 if o in FACE else (JIT[o.name][2] - 0.6) * 0.55
     a = max(0.0, min(1.0, (t - order * 0.55) / 0.42))
@@ -740,11 +849,112 @@ def disperse(o, i, t):
     o.location.z += 0.55 * e * e                            # and drift up as it goes
     o.location.x += 0.18 * e * math.cos(JIT[o.name][0])
 
-CLIPS = ([('lance_fp', 66, lance)] if MODE == 'fp' else
-         [('idle', 150, idle), ('flap', 96, flap), ('lance', 66, lance),
-          ('flinch', 30, flinch), ('disperse', 96, disperse)])
+# ── JUDGEMENT ─────────────────────────────────────────────────────
+# She sweeps UP to bring it forth and DOWN to drive it home. The blade is
+# made of her own plates: they climb, lock into an edge above her, hang
+# (that hang IS the dodge window), then fall — INTEGRATED, not eased, so
+# it arrives with weight instead of floating down.
+BLADE_TOP  = 13.6
+BLADE_GAP  = 2.15      # segments must TILE, not leave gaps
+BLADE_REST = 0.55          # where the point ends up: ground level
 
-if MODE != 'fp':
+def judgement(o, i, t):
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
+    T_CALL, T_LOCK, T_HANG, T_FALL, T_HIT = 0.22, 0.36, 0.48, 0.58, 0.66
+
+    if o in BLADE:
+        k = BLADE.index(o)
+        if t < T_CALL * 0.35:
+            o.scale = (0.001, 0.001, 0.001); return
+        # gather: plates arrive scattered, then converge into an edge
+        g = min(1.0, max(0.0, (t - T_CALL*0.35) / (T_LOCK - T_CALL*0.35)))
+        g = g ** 0.7
+        ang = JIT[o.name][0] if o.name in JIT else k * 1.7
+        sx = math.cos(ang) * 3.4 * (1 - g)
+        sz = math.sin(ang) * 2.2 * (1 - g)
+        # fall: v0=0, z = z0 - 1/2 g t^2, so it ACCELERATES like a mass
+        drop = 0.0
+        if t > T_HANG:
+            u = min(1.0, (t - T_HANG) / (T_FALL - T_HANG + 0.001))
+            # Constant chosen so the POINT actually reaches the ground:
+            # from BLADE_TOP 13.6 to BLADE_REST 0.55 is a 13.05 drop, and
+            # 0.5*9.81*0.62^2 = 1.885, so C = 6.92. At 4.6 it stopped 4.9
+            # units short and the sword hung in the air and faded — all
+            # wind-up, no landing.
+            drop = 0.5 * 9.81 * (u * 0.62) ** 2 * 7.0
+        top = BLADE_TOP - drop
+        z = max(BLADE_REST + k * BLADE_GAP, top - k * BLADE_GAP)
+        o.location = Vector((sx * 0.6, 0.0, z + sz))
+        o.rotation_euler = (0.0, math.radians(180 * (1 - g) * (1 if k % 2 else -1)), 0.0)
+        w = 0.34 + 1.05 * (k / float(BLADE_N - 1))        # TAPERS TO A POINT
+        h = 2.55                                          # tall enough to tile
+        o.scale = (w * g, 1.0, h * g)
+        if t > T_HIT:                                      # shatter at the base
+            e = (t - T_HIT) / (1.0 - T_HIT)
+            o.location.z += e * e * 1.2 * k * 0.3
+            o.location.x += math.cos(ang) * e * e * 5.0
+            o.scale = (w*g*(1-e*0.8), 1.0, h*g*(1-e*0.8))
+        return
+
+    # HER: sweep up to call it, drive down to land it
+    if t < T_CALL:
+        c = (t / T_CALL) ** 0.8
+        o.location.z += c * 0.85
+        o.rotation_euler[1] += math.radians(c * 7.0 * (1 if i % 2 else -1))
+    elif t < T_HANG:
+        o.location.z += 0.85
+    elif t < T_HIT:
+        u = (t - T_HANG) / (T_HIT - T_HANG)
+        o.location.z += 0.85 - u * 1.65                    # DRIVES it down
+        o.rotation_euler[1] += math.radians(-u * 5.0)
+    else:
+        e = (t - T_HIT) / (1.0 - T_HIT)
+        o.location.z += -0.80 * (1 - e ** 0.55)            # settle back up
+        o.location.x += math.sin(e * 22.0) * 0.10 * (1 - e) # ring from the impact
+
+# ── DODGE ─────────────────────────────────────────────────────────
+# She cannot sidestep and she cannot turn — she is a billboard. But she
+# is FLAT, so she can present ZERO CROSS-SECTION: go edge-on and the
+# projectile passes through where she is not. For a few frames she breaks
+# the one rule that defines her, which is exactly why it reads as
+# impossible rather than as animation. The inverse of flinch: flinch is
+# the image DISTURBED, dodge is the image briefly ABSENT.
+def dodge(o, i, t):
+    if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
+    # centre-out lag, so she WIPES out of existence rather than flipping
+    lag = min(0.34, abs(o.location.x) * 0.085)
+    u = max(0.0, min(1.0, (t - lag) / (0.62 - lag)))
+    swing = math.sin(u * math.pi) ** 0.65
+    o.rotation_euler[2] += math.radians(88.0 * swing)
+    o.location.x += 0.30 * swing * (1 if o.location.x >= 0 else -1)
+
+# ── REGARD ────────────────────────────────────────────────────────
+# She has no aggro moment. And since her whole identity is NEVER
+# RESOLVING, the most unsettling thing available to her is to snap into
+# perfect coherence — every plate registered, the drift stopped, the face
+# aligned — hold, and then come apart again. She looks at you by choosing,
+# briefly, to be legible.
+def regard(o, i, t):
+    if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
+    if   t < 0.26: k = 1.0 - (t / 0.26) ** 0.45      # chaos -> ALIGNED
+    elif t < 0.58: k = 0.0                            # HELD. she is looking.
+    else:          k = ((t - 0.58) / 0.42) ** 1.6     # and releases
+    pa, pb, amp = JIT[o.name]
+    ph = 2 * math.pi * (0.31 + t * 0.4)
+    o.rotation_euler[1] += math.radians(3.1 * amp * k * math.sin(ph + pa))
+    o.location.x += 0.075 * amp * k * math.sin(ph * 0.7 + pb)
+    o.location.z += 0.065 * amp * k * math.cos(ph * 1.3 + pa)
+    o.location.z += 0.10 * (1.0 - k) * math.sin(t * math.pi)   # rises as it locks
+
+CLIPS = ([('lance_ext', 66, lance), ('judge_ext', 108, judgement),
+          ('dodge_ext', 26, dodge)] if MODE == 'ext' else
+         [('lance_fp', 66, lance)] if MODE == 'fp' else
+         [('idle', 150, idle), ('flap', 96, flap), ('lance', 66, lance),
+          ('flinch', 30, flinch), ('disperse', 96, disperse),
+          ('judgement', 108, judgement), ('dodge', 26, dodge),
+          ('regard', 54, regard)])
+
+if MODE not in ('fp', 'ext'):
     sc.render.resolution_x = sc.render.resolution_y = 700
 for name, n, fn in CLIPS:
     bake(name, n, fn)
