@@ -728,10 +728,62 @@ def bake(name, nframes, fn, fps=30):
     sc.frame_start, sc.frame_end = 0, nframes
     sc.render.fps = fps
 
+# ══════════════════════════════════════════════════════════════════
+# POLISH PASS. v1.0alpha was FUNCTIONAL: every clip keyed her whole body
+# in lockstep on one power curve. That is whole-pose keying, and it is the
+# clearest single tell of unpolished animation — I diagnosed it on the
+# succubus and then did it anyway here. What this pass adds:
+#
+#   ANTICIPATION   a counter-move before every action
+#   OVERSHOOT      arrivals pass their target and settle back
+#   HOLDS          real stillness at extremes; snap comes from stops
+#   FOLLOW-THROUGH her wings lag her body and catch up late
+#   SMEAR          1-2 frames of extreme displacement on impact
+#   PER-PLATE LAG  motion PROPAGATES through her instead of happening to
+#                  all of her at once
+# ══════════════════════════════════════════════════════════════════
+
+# ── easing ────────────────────────────────────────────────────────
+def e_out5(x):  return 1.0 - (1.0 - x) ** 5                     # hard snap out
+def e_in3(x):   return x * x * x                                # drops away
+def e_io3(x):   return 4*x**3 if x < 0.5 else 1 - (-2*x + 2)**3 / 2
+def e_ios(x):   return -(math.cos(math.pi * x) - 1) / 2         # sine in-out
+def e_in2(x):   return x * x
+def e_back(x, s=2.05):                                          # OVERSHOOTS
+    c = s + 1.0
+    return 1.0 + c * (x - 1.0) ** 3 + s * (x - 1.0) ** 2
+def settle(x, freq=2.4, damp=5.6):                              # rings down to 1
+    if x <= 0.0: return 0.0
+    if x >= 1.0: return 1.0
+    return 1.0 - math.exp(-damp * x) * math.cos(freq * 2 * math.pi * x)
+def win(t, a, b):
+    """normalised progress through [a,b], clamped — lets a clip be written
+    as named phases instead of arithmetic on one global t"""
+    if b <= a: return 1.0 if t >= b else 0.0
+    return max(0.0, min(1.0, (t - a) / (b - a)))
+def stroke(x):
+    """A wing beat is NOT a sine. The downstroke is the power stroke and it
+    is fast; the recovery is slow. Symmetric motion reads as a metronome."""
+    if x < 0.32:
+        return 1.0 - 2.0 * e_in2(x / 0.32)
+    return -1.0 + 2.0 * e_ios((x - 0.32) / 0.68)
+
+# ── per-plate propagation basis ───────────────────────────────────
+# Motion should TRAVEL through her. These give every plate a place in a
+# queue, so a gesture starts somewhere and arrives somewhere else.
+_xs = [abs(REST[o.name][0].x) for o in ALL] or [1.0]
+_zs = [REST[o.name][0].z for o in ALL] or [1.0]
+_xmax, _zlo, _zhi = max(_xs) or 1.0, min(_zs), max(_zs)
+RAD, HGT = {}, {}
+for o in ALL:
+    RAD[o.name] = abs(REST[o.name][0].x) / _xmax                  # 0 centre -> 1 outer
+    HGT[o.name] = (REST[o.name][0].z - _zlo) / max(1e-6, _zhi - _zlo)
+
 # ── IDLE ──────────────────────────────────────────────────────────
-# Every plate on its OWN period, none commensurate, so the arrangement
-# never repeats. The face runs at triple frequency: it is permanently
-# the least stable thing on her. Plus a slow global bob.
+# Every plate on its own incommensurate period so the arrangement never
+# repeats, the face at TRIPLE frequency. Added: a slow BREATH ENVELOPE, so
+# she has calm stretches and agitated ones instead of one constant level of
+# fidget — the amplitude itself drifts.
 PRIMES = [7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79]
 random.seed(4)
 JIT = {o.name: (random.uniform(0, 6.283), random.uniform(0, 6.283),
@@ -743,29 +795,41 @@ def idle(o, i, t):
     pa, pb, amp = JIT[o.name]
     fast = 3.0 if o in FACE else 1.0
     k = PRIMES[i % len(PRIMES)] / 23.0
-    o.rotation_euler[1] += math.radians(2.4 * amp * fast
-                                        * math.sin(2*math.pi*t*k + pa))
+    env = 0.62 + 0.38 * math.sin(2*math.pi*t*0.37 + pa*0.5)      # BREATH
+    amp *= env
+    o.rotation_euler[1] += math.radians(2.4 * amp * fast * math.sin(2*math.pi*t*k + pa))
     o.location.x += 0.055 * amp * math.sin(2*math.pi*t*k*0.7 + pb)
     o.location.z += 0.048 * amp * math.cos(2*math.pi*t*k*1.3 + pa)
-    o.location.z += 0.115 * math.sin(2*math.pi*t)          # global bob
+    o.location.z += 0.115 * math.sin(2*math.pi*t)
     sc_ = 1.0 + 0.020 * amp * math.sin(2*math.pi*t*k*0.5 + pb)
     o.scale = (sc_, sc_, sc_)
 
-# ── LANCE (gomu gomu no pistoru) ──────────────────────────────────
-# Khaled's drawing: not the wings, and not a stretch — TRIANGLES STACKING
-# AT YOU, each rotated. Since she is a billboard permanently facing the
-# player, the chain has to leave her plane and come OUT OF THE SCREEN.
-# The camera sits at -Y, so the lance travels in -Y, and each segment is
-# thrown alternately up and down so the chain zigzags as it reaches.
-LANCE_REACH  = 0.82      # per segment, in -Y. The chain must STOP
-                         # WELL SHORT of the lens: at 1.15 the last segment
-                         # sat basically on the camera and filled the frame.
-LANCE_ZIG    = 0.60      # alternating screen-vertical throw
+# ── FLAP ──────────────────────────────────────────────────────────
+# One square at a time with lag down the chain. Added: the ASYMMETRIC
+# STROKE (fast power down, slow recovery up) and FOLLOW-THROUGH — each
+# plate over-rotates past the bottom of its beat and eases back, so the
+# chain whips instead of sliding.
+def flap(o, i, t):
+    if o in SEG or o in BLADE: o.scale = (0.001,0.001,0.001); return
+    if '_L_' in o.name or '_R_' in o.name:
+        k = plate_index(o)
+        x = (t - k * 0.098) % 1.0                                # THE LAG
+        w = stroke(x)
+        o.location.z += 0.36 * w
+        o.location.x += 0.11 * w * (-1 if '_L_' in o.name else 1)
+        wl = stroke((x - 0.06) % 1.0)                            # rotation TRAILS
+        o.rotation_euler[1] += math.radians(11.0 * wl)
+    else:
+        w = stroke((t - 0.19) % 1.0)                             # body rides it LATE
+        o.location.z += 0.080 * w
+        pa = JIT[o.name][0]
+        o.rotation_euler[1] += math.radians(1.6 * math.sin(2*math.pi*t*0.7 + pa))
+
+# ── LANCE ─────────────────────────────────────────────────────────
+LANCE_REACH  = 0.82      # per segment. The chain must STOP SHORT of the lens.
+LANCE_ZIG    = 0.60      # alternating throw, TAPERED toward the player
 LANCE_ANCHOR = Vector((1.05, 0.0, 2.75))
 
-# Aimed at the CAMERA, not simply along -Y. A lance that travels parallel
-# to the view axis passes beside you and reads as scenery; one that grows
-# on your eye line reads as a threat you have to leave.
 def _aim_frame():
     a = LANCE_ANCHOR
     d = (TARGET_POS - a); d.normalize()
@@ -774,17 +838,14 @@ def _aim_frame():
     return d, r, u
 
 def lance(o, i, t):
-    # extend 0 -> 1 -> hold -> retract, with a hard snap out and a slower haul back
-    # WIND-UP. Without this the attack goes from nothing to fully extended
-    # in ~0.7s and there is nothing to react TO. The first three blades
-    # gather at the source and SHIVER first — the player's cue to leave.
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
     TELE = 0.30
     if t < TELE:
+        # WIND-UP, now with a sharp inhale at the end rather than a linear ramp
         if o in SEG:
             k = SEG.index(o)
-            if k > 2:
-                o.scale = (0.001, 0.001, 0.001); return
-            g = t / TELE
+            if k > 2: o.scale = (0.001, 0.001, 0.001); return
+            g = e_in2(t / TELE)
             sh = math.sin(t * 62.0) * 0.10 * g
             dv, rv, uv = _aim_frame()
             o.location = LANCE_ANCHOR + dv * (0.30 * k) + uv * (sh + 0.12 * k)
@@ -793,191 +854,195 @@ def lance(o, i, t):
             b = 0.16 * (0.4 + 0.6 * g)
             o.scale = (b, b, b)
         else:
-            c = math.sin(t / TELE * math.pi) ** 2
-            o.location.x += c * 0.22                  # she COCKS before she throws
-            o.rotation_euler[1] += math.radians(c * 4.0)
+            c = e_in2(t / TELE)
+            o.location.x += c * 0.26                              # COCKS, accelerating
+            o.location.z -= c * 0.10                              # and sinks: gathering
+            o.rotation_euler[1] += math.radians(c * 5.0)
         return
 
-    t = (t - TELE) / (1.0 - TELE)                     # remap: the attack proper
-    if   t < 0.14: u = 0.0
-    elif t < 0.46: u = ((t - 0.14) / 0.32) ** 0.55        # SNAP out
-    elif t < 0.62: u = 1.0                                # hang, fully extended
-    else:          u = 1.0 - ((t - 0.62) / 0.38) ** 1.7   # haul back
+    tt = win(t, TELE, 1.0)
+    # phases: snap out -> HELD -> haul back with ring
+    if   tt < 0.34: u = e_out5(tt / 0.34)                         # SNAP
+    elif tt < 0.52: u = 1.0                                       # HELD, fully out
+    else:           u = 1.0 - e_io3(win(tt, 0.52, 1.0))           # haul
 
     if o in SEG:
         k = SEG.index(o)
-        lead = k / float(LANCE_N)                 # each segment waits its turn
+        lead = k / float(LANCE_N)
         a = max(0.0, min(1.0, (u - lead * 0.72) / 0.28))
-        if a <= 0.001:
-            o.scale = (0.001, 0.001, 0.001); return
+        if a <= 0.001: o.scale = (0.001, 0.001, 0.001); return
         dv, rv, uv = _aim_frame()
         reach = (k + 1) * LANCE_REACH * a
-        # The zigzag TAPERS toward the player. Constant amplitude means the
-        # near blades — a metre from the lens — swing right off the top of
-        # frame. A lance CONVERGES on what it is aimed at: wide chaos at her
-        # end, a point at yours.
         taper = 1.0 - 0.78 * (k / float(LANCE_N))
         zig   = LANCE_ZIG * taper * (1 if k % 2 else -1) * a
         o.location = LANCE_ANCHOR + dv * reach + uv * zig + rv * (0.10 * a * taper)
-        # each one ROTATED — the chain pinwheels as it reaches
         o.rotation_euler = (math.radians(26 * (1 if k % 2 else -1) * a * taper),
                             math.radians(46 * k * a * 0.35),
                             math.radians(38 * (1 if k % 2 else -1) * a * taper))
-        # shrink with depth so perspective ENLARGES them back toward
-        # parity — the chain reads as receding blades, not a widening cone
         base = 0.50 * (1.0 - 0.50 * k / float(LANCE_N))
         sc_ = base * (0.35 + 0.65 * a)
         o.scale = (sc_, sc_, sc_)
     else:
-        o.location.x -= u * 0.30                          # she recoils
-        o.rotation_euler[1] += math.radians(-u * 3.0)
-
-# ── IDLE FLAP ─────────────────────────────────────────────────────
-# Normal wings move as one. Hers move ONE SQUARE AT A TIME, with lag —
-# a travelling wave down the chain, so the wing never holds a shape. The
-# rest of her breathes underneath it.
-def flap(o, i, t):
-    if o in SEG or o in BLADE: o.scale = (0.001,0.001,0.001); return
-    ph = 2 * math.pi * t
-    if '_L_' in o.name or '_R_' in o.name:
-        k = plate_index(o)
-        lag = k * 0.62                                     # THE LAG
-        w = math.sin(ph - lag)
-        o.location.z += 0.34 * w
-        o.location.x += 0.10 * w * (-1 if '_L_' in o.name else 1)
-        o.rotation_euler[1] += math.radians(9.0 * math.sin(ph - lag - 0.5))
-    else:
-        o.location.z += 0.075 * math.sin(ph - 1.1)         # body rides the beat, late
-        pa = JIT[o.name][0]
-        o.rotation_euler[1] += math.radians(1.6 * math.sin(ph * 0.7 + pa))
-
-# ── FLINCH ────────────────────────────────────────────────────────
-# Registration failure, spiked. Every plate jumps out from the centre
-# and comes back — the image is DISTURBED, not the body injured.
-def flinch(o, i, t):
-    if o in BLADE: o.scale = (0.001,0.001,0.001); return
-    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    d = math.exp(-4.2 * t) * math.sin(2*math.pi*t*3.4)
-    ang = JIT[o.name][0]
-    o.location.x += math.cos(ang) * d * 0.42
-    o.location.z += math.sin(ang) * d * 0.42
-    o.rotation_euler[1] += math.radians(d * 11.0)
-
-# ── DISPERSE, rebuilt ─────────────────────────────────────────────
-# The radial explosion was Windows Movie Maker. The right idea is already
-# in what she IS: she is FLAT, so a plate turned edge-on STOPS EXISTING.
-# She does not break apart — she has no other side to show you, so she
-# vanishes by trying to show it. Staggered, so she goes out plate by
-# plate, and the face is LAST because the face is the last thing to admit
-# it was never there.
-def disperse(o, i, t):
-    if o in BLADE: o.scale = (0.001,0.001,0.001); return
-    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    order = 0.72 if o in FACE else (JIT[o.name][2] - 0.6) * 0.55
-    a = max(0.0, min(1.0, (t - order * 0.55) / 0.42))
-    if a <= 0.0: return
-    e = a ** 0.8
-    o.rotation_euler[2] += math.radians(92.0 * e)          # turn EDGE-ON
-    o.rotation_euler[1] += math.radians(14.0 * e * (1 if i % 2 else -1))
-    o.location.z += 0.55 * e * e                            # and drift up as it goes
-    o.location.x += 0.18 * e * math.cos(JIT[o.name][0])
+        # she RECOILS on the snap and RINGS DOWN afterwards, outer plates last
+        lag = RAD[o.name] * 0.09
+        ru = max(0.0, min(1.0, (u - lag) / max(1e-6, 1.0 - lag)))
+        o.location.x -= ru * 0.32
+        o.rotation_euler[1] += math.radians(-ru * 3.2)
+        if tt > 0.52:
+            r = win(tt, 0.52, 1.0)
+            ring = math.exp(-5.0 * r) * math.sin(r * 15.0) * (0.5 + 0.5 * RAD[o.name])
+            o.location.x += ring * 0.16
+            o.rotation_euler[1] += math.radians(ring * 4.0)
 
 # ── JUDGEMENT ─────────────────────────────────────────────────────
-# She sweeps UP to bring it forth and DOWN to drive it home. The blade is
-# made of her own plates: they climb, lock into an edge above her, hang
-# (that hang IS the dodge window), then fall — INTEGRATED, not eased, so
-# it arrives with weight instead of floating down.
-BLADE_TOP  = 13.9      # where the POINT starts, above the target
-BLADE_REST = 0.85      # and where it ends up: in the target
+BLADE_TOP  = 13.9
+BLADE_REST = 0.85
+# In fp/ext the player is a real place. In `anim` — the beauty shot — the
+# "player" IS the camera, so the sword lands on the lens and fills the
+# frame: correct, and a useless preview. Give it a visible spot instead.
+JUDGE_AT = (Vector((2.7, -3.4, 0.85)) if MODE == 'anim' else TARGET_POS)
 
 def judgement(o, i, t):
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    T_CALL, T_LOCK, T_HANG, T_FALL, T_HIT = 0.22, 0.38, 0.50, 0.60, 0.67
+    T_DIP, T_CALL, T_LOCK, T_HANG, T_FALL = 0.07, 0.24, 0.40, 0.52, 0.615
+    T_SMEAR, T_HIT = 0.628, 0.655
 
     if o in BLADE:
-        if t < T_CALL * 0.30:
-            o.scale = (0.001, 0.001, 0.001); return
-        # GATHER: a cloud of unrelated shapes that locks into a sword
-        g = min(1.0, max(0.0, (t - T_CALL*0.30) / (T_LOCK - T_CALL*0.30))) ** 0.7
+        if t < T_DIP: o.scale = (0.001, 0.001, 0.001); return
+        g = e_out5(win(t, T_DIP, T_LOCK))
         j = BLADE.index(o)
-        ang = j * 2.399                                  # golden-angle spread
+        ang = j * 2.399
         sx = math.cos(ang) * 4.2 * (1 - g)
         sz = math.sin(ang) * 3.0 * (1 - g)
-
-        # FALL: integrated, and the constant is derived so the POINT lands
         drop = 0.0
         if t > T_HANG:
-            u = min(1.0, (t - T_HANG) / (T_FALL - T_HANG))
-            need = BLADE_TOP - BLADE_REST
-            drop = need * (u ** 2)                       # accelerating, arrives exactly
+            u = win(t, T_HANG, T_FALL)
+            drop = (BLADE_TOP - BLADE_REST) * e_in3(u) ** 0.72    # accelerates HARD
         point_z = BLADE_TOP - drop
-
         off = BLADE_OFF[o.name]
-        o.location = Vector((TARGET_POS.x + off.x * g + sx,
-                             TARGET_POS.y,
-                             point_z + off.z * g + sz))
+        o.location = Vector((JUDGE_AT.x + off.x * g + sx,
+                             JUDGE_AT.y, point_z + off.z * g + sz))
         o.rotation_euler = (0.0, math.radians(210 * (1 - g) * (1 if j % 2 else -1)), 0.0)
         o.scale = (g, 1.0, g)
-
-        if t > T_HIT:                                    # come apart on impact
-            e = (t - T_HIT) / (1.0 - T_HIT)
-            o.location.x += math.cos(ang) * e * e * 5.5
-            o.location.z += math.sin(ang) * e * e * 2.6 + e * e * 1.1
-            o.location.y += math.sin(ang * 1.7) * e * e * 2.2
+        if T_FALL <= t < T_HIT:                                   # 2-frame SMEAR
+            o.scale = (g * 1.10, 1.0, g * 0.90)
+        if t >= T_HIT:
+            e = win(t, T_HIT, 1.0)
+            o.location.x += math.cos(ang) * e_out5(e) * 5.5
+            o.location.z += math.sin(ang) * e_out5(e) * 2.6 + e * e * 1.1
+            o.location.y += math.sin(ang * 1.7) * e_out5(e) * 2.2
             o.rotation_euler = (0.0, math.radians(160 * e * (1 if j % 2 else -1)), 0.0)
-            k = max(0.02, g * (1.0 - e * 0.9))
+            k = max(0.02, g * (1.0 - e_in2(e) * 0.95))
             o.scale = (k, 1.0, k)
         return
 
-    # HER: sweep up to call it, drive down to land it
-    if t < T_CALL:
-        c = (t / T_CALL) ** 0.8
-        o.location.z += c * 0.85
-        o.rotation_euler[1] += math.radians(c * 7.0 * (1 if i % 2 else -1))
+    # HER — every phase now propagates outward from her centre
+    lag = RAD[o.name] * 0.075 + (1.0 - HGT[o.name]) * 0.03
+    if t < T_DIP:                                                 # ANTICIPATION
+        o.location.z -= e_ios(t / T_DIP) * 0.22
+    elif t < T_CALL:
+        u = max(0.0, win(t, T_DIP, T_CALL) - lag) / max(1e-6, 1.0 - lag)
+        o.location.z += -0.22 + e_back(min(1.0, u)) * 1.07        # OVERSHOOTS the top
+        o.rotation_euler[1] += math.radians(min(1.0,u) * 7.0 * (1 if i % 2 else -1))
     elif t < T_HANG:
-        o.location.z += 0.85
+        h = win(t, T_CALL, T_HANG)
+        o.location.z += 0.85 + math.exp(-6.0*h) * math.sin(h*13.0) * 0.09   # HOLD, ringing
+    elif t < T_SMEAR:
+        u = win(t, T_HANG, T_SMEAR)
+        u = max(0.0, u - lag * 1.6) / max(1e-6, 1.0 - lag * 1.6)
+        o.location.z += 0.85 - e_in3(u) * 1.72                    # DRIVES down
+        o.rotation_euler[1] += math.radians(-u * 6.0)
     elif t < T_HIT:
-        u = (t - T_HANG) / (T_HIT - T_HANG)
-        o.location.z += 0.85 - u * 1.65
-        o.rotation_euler[1] += math.radians(-u * 5.0)
+        o.location.z += -0.95                                     # SMEAR: past the pose
+        o.location.x += 0.13 * (1 if i % 2 else -1)
+        o.scale = (1.06, 1.0, 0.93)
     else:
-        e = (t - T_HIT) / (1.0 - T_HIT)
-        o.location.z += -0.80 * (1 - e ** 0.55)
-        o.location.x += math.sin(e * 22.0) * 0.10 * (1 - e)
+        e = win(t, T_HIT, 1.0)
+        o.location.z += -0.87 * (1.0 - settle(e, 2.2, 5.2))       # rings back UP
+        o.location.x += math.exp(-4.5*e) * math.sin(e*19.0) * 0.14 * (0.4+RAD[o.name])
 
 # ── DODGE ─────────────────────────────────────────────────────────
-# She cannot sidestep and she cannot turn — she is a billboard. But she
-# is FLAT, so she can present ZERO CROSS-SECTION: go edge-on and the
-# projectile passes through where she is not. For a few frames she breaks
-# the one rule that defines her, which is exactly why it reads as
-# impossible rather than as animation. The inverse of flinch: flinch is
-# the image DISTURBED, dodge is the image briefly ABSENT.
+# Zero cross-section. Added: ANTICIPATION (a counter-rotation before the
+# turn), a HELD frame at edge-on, and a spring return that overshoots.
 def dodge(o, i, t):
     if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
-    # centre-out lag, so she WIPES out of existence rather than flipping
-    lag = min(0.34, abs(o.location.x) * 0.085)
-    u = max(0.0, min(1.0, (t - lag) / (0.62 - lag)))
-    swing = math.sin(u * math.pi) ** 0.65
-    o.rotation_euler[2] += math.radians(88.0 * swing)
-    o.location.x += 0.30 * swing * (1 if o.location.x >= 0 else -1)
+    A = 0.13
+    lag = RAD[o.name] * 0.16
+    if t < A:
+        c = e_ios(t / A)
+        o.rotation_euler[2] += math.radians(-11.0 * c)            # WINDS THE WRONG WAY
+        o.location.x -= 0.05 * c * (1 if o.location.x >= 0 else -1)
+        return
+    u = max(0.0, min(1.0, (win(t, A, 1.0) - lag) / max(1e-6, 1.0 - lag)))
+    if   u < 0.34: sw = e_out5(u / 0.34)                          # snap edge-on
+    elif u < 0.46: sw = 1.0                                       # HELD absent
+    else:          sw = 1.0 - e_out5(win(u, 0.46, 1.0))
+    o.rotation_euler[2] += math.radians(-11.0 * (1.0 - sw) + 91.0 * sw)
+    o.location.x += 0.30 * sw * (1 if o.location.x >= 0 else -1)
+
+# ── FLINCH ────────────────────────────────────────────────────────
+# Registration failure. Added: a 1-frame HARD SMEAR at impact, and
+# PER-PLATE decay rates and frequencies so it is a chaotic ring-down
+# rather than nineteen plates sharing one envelope.
+def flinch(o, i, t):
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
+    pa, pb, amp = JIT[o.name]
+    if t < 0.045:                                                 # SMEAR
+        o.location.x += math.cos(pa) * 0.62 * amp
+        o.location.z += math.sin(pa) * 0.62 * amp
+        o.scale = (1.0 + 0.12*amp, 1.0, 1.0 - 0.10*amp)
+        o.rotation_euler[1] += math.radians(16.0 * amp)
+        return
+    x = win(t, 0.045, 1.0)
+    dmp = 3.2 + 2.6 * amp                                         # per-plate decay
+    frq = 2.6 + 1.9 * (pb / 6.283)                                # per-plate frequency
+    d = math.exp(-dmp * x) * math.sin(2*math.pi*frq*x)
+    o.location.x += math.cos(pa) * d * 0.46 * amp
+    o.location.z += math.sin(pa) * d * 0.46 * amp
+    o.rotation_euler[1] += math.radians(d * 12.0 * amp)
 
 # ── REGARD ────────────────────────────────────────────────────────
-# She has no aggro moment. And since her whole identity is NEVER
-# RESOLVING, the most unsettling thing available to her is to snap into
-# perfect coherence — every plate registered, the drift stopped, the face
-# aligned — hold, and then come apart again. She looks at you by choosing,
-# briefly, to be legible.
+# She snaps into coherence, HOLDS, then comes apart. Added: the lock is now
+# a hard snap that propagates INWARD (outer plates settle last), the hold is
+# genuinely motionless, and the release BLOOMS outward instead of fading.
 def regard(o, i, t):
     if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
-    if   t < 0.26: k = 1.0 - (t / 0.26) ** 0.45      # chaos -> ALIGNED
-    elif t < 0.58: k = 0.0                            # HELD. she is looking.
-    else:          k = ((t - 0.58) / 0.42) ** 1.6     # and releases
     pa, pb, amp = JIT[o.name]
+    lag_in  = (1.0 - RAD[o.name]) * 0.10                          # centre locks first
+    lag_out = RAD[o.name] * 0.16                                  # outer releases first
+    if t < 0.30:
+        k = 1.0 - e_out5(max(0.0, min(1.0, (win(t, 0.0, 0.30) - lag_in) / (1.0 - lag_in))))
+    elif t < 0.62:
+        k = 0.0                                                   # HELD. she is looking.
+    else:
+        k = e_in3(max(0.0, min(1.0, (win(t, 0.62, 1.0) - lag_out) / (1.0 - lag_out))))
     ph = 2 * math.pi * (0.31 + t * 0.4)
     o.rotation_euler[1] += math.radians(3.1 * amp * k * math.sin(ph + pa))
     o.location.x += 0.075 * amp * k * math.sin(ph * 0.7 + pb)
     o.location.z += 0.065 * amp * k * math.cos(ph * 1.3 + pa)
-    o.location.z += 0.10 * (1.0 - k) * math.sin(t * math.pi)   # rises as it locks
+    o.location.z += 0.12 * (1.0 - k) * e_ios(min(1.0, t * 2.4))   # RISES as it locks
+
+# ── DISPERSE ──────────────────────────────────────────────────────
+# Edge-on and gone. Added: each plate ANTICIPATES with a small counter-turn,
+# then OVER-ROTATES past 90 and settles — so it goes out with a flick
+# instead of a fade.
+def disperse(o, i, t):
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
+    if o in BLADE: o.scale = (0.001,0.001,0.001); return
+    order = 0.72 if o in FACE else (JIT[o.name][2] - 0.6) * 0.55
+    st = order * 0.55
+    a = win(t, st, min(0.999, st + 0.42))
+    if a <= 0.0: return
+    if a < 0.12:
+        c = e_ios(a / 0.12)
+        o.rotation_euler[2] += math.radians(-9.0 * c)
+        return
+    e = win(a, 0.12, 1.0)
+    o.rotation_euler[2] += math.radians(-9.0 + e_back(e, 1.4) * 103.0)
+    o.rotation_euler[1] += math.radians(14.0 * e * (1 if i % 2 else -1))
+    o.location.z += 0.58 * e_in2(e)
+    o.location.x += 0.20 * e * math.cos(JIT[o.name][0])
 
 CLIPS = ([('lance_ext', 66, lance), ('judge_ext', 108, judgement),
           ('dodge_ext', 26, dodge)] if MODE == 'ext' else
