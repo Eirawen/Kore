@@ -197,6 +197,15 @@ they are sized so perspective fills the player's screen at arm's length, so
 an observer sees a modest attack while the person being hit sees the sky
 fall. Check every attack from outside before calling it done.
 
+**DECIDED 2026-08-11 (Khaled):** her body billboards, HER ATTACKS DO NOT.
+Two GLB roots — `ARBELOS_BODY` (billboarded) and `ARBELOS_WORLD` (never). And
+the two attacks want different world behaviour: `judgement`/`combo` are FULLY
+DETACHED at cast (the sword falls where it was called, which is what makes
+leaving a valid dodge), while `lance` is ORIGIN-ATTACHED but
+ORIENTATION-LOCKED (its start tracks her chest; a thrown lance does not
+steer). Filed in
+`crescent/codex/feature-requests/open/arbelos-wants-to-be-a-boss.md`.
+
 **Open:** engine side (one Y-axis billboard + clip playback; she is
 coplanar so there is no per-part work). Paper vs dark ground undecided.
 
