@@ -328,39 +328,64 @@ def hx(h):
 # pushed to 1.7-3.4 simply became paper. So everything sits at 1.0 and the
 # identity is carried by CHROMA; the glow is added as a real bloom pass in
 # post, where it belongs.
-DIVINE = {
+# THE TABLE IS DATA, NOT CLOSURES. It was a dict of builder closures whose
+# parameters could not be read back — so the contract's material manifest would
+# have had to RE-TYPE every hex, which is exactly the drift this pipeline
+# exists to prevent. One spec now drives both the Blender material and the
+# emitted manifest.
+DIVINE_SPEC = {
   # THE FACE — four incompatible substances meeting at one point
-  'face_top':        METAL('#c47f00', '#ffe066', rot=0.9),   # gold leaf
-  'face_left_small': FLAT('#ffffff'),                        # the sliver you cannot look at
-  'face_right_big':  FLAT('#7b1fd4'),                        # ultraviolet
-  'face_rhombus':    FLAT('#ff1744'),                        # arterial. the one ORGANIC thing.
+  'face_top':        ('metal', dict(uColorA='#c47f00', uColorB='#ffe066', uRot=0.9)),
+  'face_left_small': ('flat',  dict(uColor='#ffffff')),   # the sliver you cannot look at
+  'face_right_big':  ('flat',  dict(uColor='#7b1fd4')),   # ultraviolet
+  'face_rhombus':    ('flat',  dict(uColor='#ff1744')),   # arterial. the one ORGANIC thing.
 
-  # LEFT WING
-  'wing_L_0': FLAT('#3fc0ff'),                               # sky
-  'wing_L_1': FLAT('#c6ff00'),                               # acid
-  'wing_L_2': METAL('#008a72', '#3fffcf', rot=2.1),          # verdigris
-  'wing_L_3': GRIME('#00d9ff', '#1436c8', 14.0),             # corrosion, electric teal
+  # LEFT WING — pastel, neon, metal, corrosion. Descending.
+  'wing_L_0': ('flat',  dict(uColor='#3fc0ff')),          # sky
+  'wing_L_1': ('flat',  dict(uColor='#c6ff00')),          # acid
+  'wing_L_2': ('metal', dict(uColorA='#008a72', uColorB='#3fffcf', uRot=2.1)),
+  'wing_L_3': ('grime', dict(uColorA='#00d9ff', uColorB='#1436c8', uScale=14.0)),
 
   # RIGHT WING — the same four ideas, OUT OF STEP. Not a pair.
-  'wing_R_0': FLAT('#ff2fb2'),                               # neon where the left was pastel
-  'wing_R_1': FLAT('#ff9e5c'),                               # pastel where the left was neon
-  'wing_R_2': METAL('#a3005f', '#ff8ad9', rot=0.35),         # chrome rose
-  'wing_R_3': GRIME('#ffc400', '#8a1fff', 11.0),             # gold blooming into violet
+  'wing_R_0': ('flat',  dict(uColor='#ff2fb2')),          # neon where left was pastel
+  'wing_R_1': ('flat',  dict(uColor='#ff9e5c')),          # pastel where left was neon
+  'wing_R_2': ('metal', dict(uColorA='#a3005f', uColorB='#ff8ad9', uRot=0.35)),
+  'wing_R_3': ('grime', dict(uColorA='#ffc400', uColorB='#8a1fff', uScale=11.0)),
 
   # THE TWO SQUARES
-  'sq_left':  IRIDESCENT('#ff6fcf', '#5ed8ff', '#9dff6f'),   # mother of pearl
-  'sq_right': METAL('#d94f00', '#ffc247', rot=1.6, sharp=0.48),
+  'sq_left':  ('iridescent', dict(uColorA='#ff6fcf', uColorB='#5ed8ff', uColorC='#9dff6f')),
+  'sq_right': ('metal', dict(uColorA='#d94f00', uColorB='#ffc247', uRot=1.6, uSharp=0.48)),
 
-  # THE CENTRE — the largest shape, a sheet of light that never settles on
-  # one colour. Not a hole and not white: it OVERWHELMS.
-  'quad':     IRIDESCENT('#ff7ac6', '#ffd76a', '#6fe8ff', scale=1.0),
+  # THE CENTRE — a sheet of light that never settles on one colour
+  'quad': ('iridescent', dict(uColorA='#ff7ac6', uColorB='#ffd76a',
+                              uColorC='#6fe8ff', uScale=1.0)),
 
   # FOUR PINIONS — one of each substance, so no corner agrees
-  'tri_UL': FLAT('#9d7aff'),                                 # lavender
-  'tri_UR': FLAT('#00ffd0'),                                 # electric
-  'tri_LL': METAL('#b87400', '#ffe9a8', rot=2.7),            # brass
-  'tri_LR': GRIME('#ff5ea8', '#ffb200', 8.0),                # rose-gold bloom
+  'tri_UL': ('flat',  dict(uColor='#9d7aff')),            # lavender
+  'tri_UR': ('flat',  dict(uColor='#00ffd0')),            # electric
+  'tri_LL': ('metal', dict(uColorA='#b87400', uColorB='#ffe9a8', uRot=2.7)),
+  'tri_LR': ('grime', dict(uColorA='#ff5ea8', uColorB='#ffb200', uScale=8.0)),
 }
+
+# engine-side registry names — four compiled programs, not nineteen
+REGISTRY_NAME = {'flat': 'arbelos_flat', 'metal': 'arbelos_metal',
+                 'grime': 'arbelos_grime', 'iridescent': 'arbelos_iridescent'}
+
+def _spec_to_builder(kind, u):
+    if kind == 'flat':
+        return FLAT(u['uColor'])
+    if kind == 'metal':
+        return METAL(u['uColorA'], u['uColorB'], rot=u.get('uRot', 0.0),
+                     sharp=u.get('uSharp', 0.55))
+    if kind == 'grime':
+        return GRIME(u['uColorA'], u['uColorB'], u.get('uScale', 9.0))
+    if kind == 'iridescent':
+        return IRIDESCENT(u['uColorA'], u['uColorB'], u['uColorC'],
+                          scale=u.get('uScale', 0.5))
+    raise KeyError(kind)
+
+DIVINE = {n: _spec_to_builder(k, u) for n, (k, u) in DIVINE_SPEC.items()}
+
 
 def paint_divine(parts):
     for o in parts:
@@ -715,24 +740,47 @@ def reset():
         L, R, S = REST[o.name]
         o.location, o.rotation_euler, o.scale = L.copy(), R.copy(), S.copy()
 
-def new_action(name):
+def new_action(name, keep_nla=False):
+    """keep_nla: animation_data_clear() DESTROYS NLA TRACKS. During export we
+    push each baked clip onto its own track, so clearing between bakes wipes
+    every previous clip — eight of nine vanished silently and only the LAST
+    one reached the GLB. No render would ever show that; only reading the
+    exported binary did."""
     for o in ALL:
-        o.animation_data_clear()
-        o.animation_data_create()
+        if not keep_nla:
+            o.animation_data_clear()
+        if o.animation_data is None:
+            o.animation_data_create()
         a = bpy.data.actions.new('%s_%s' % (name, o.name))
         a.use_fake_user = True
         o.animation_data.action = a
 
-def bake(name, nframes, fn, fps=60):
-    """fn(o, i, t) sets the object's transform for normalised time t."""
-    new_action(name)
-    for f in range(nframes + 1):
-        t = f / nframes
+IDLE_PERIOD = 210.0        # frames in one idle loop, for padding phase
+
+def bake(name, nframes, fn, fps=60, pad=0, keep_nla=False):
+    """fn(o, i, t) sets the transform for normalised clip time t.
+
+    pad = frames of REAL IDLE before and after, with the idle amplitude
+    eased to zero at each boundary. A 0.7s one-shot is close to unwatchable
+    on its own; a second of her standing there on either side makes the
+    shape of the move legible."""
+    new_action(name, keep_nla=keep_nla)
+    total = nframes + 2 * pad
+    for f in range(total + 1):
         reset()
-        for i, o in enumerate(ALL):
-            fn(o, i, t)
+        if pad and f < pad:                              # LEAD-IN
+            a = f / float(pad)
+            w = 1.0 if a < 0.55 else 1.0 - e_ios((a - 0.55) / 0.45)
+            for i, o in enumerate(ALL): _idle_at(o, i, (f / IDLE_PERIOD) % 1.0, w)
+        elif pad and f > pad + nframes:                  # TAIL
+            a = (f - pad - nframes) / float(pad)
+            w = e_ios(min(1.0, a / 0.45))
+            for i, o in enumerate(ALL): _idle_at(o, i, (f / IDLE_PERIOD) % 1.0, w)
+        else:
+            t = (f - pad) / nframes
+            for i, o in enumerate(ALL): fn(o, i, t)
         for o in ALL: key(o, f)
-    sc.frame_start, sc.frame_end = 0, nframes
+    sc.frame_start, sc.frame_end = 0, total
     sc.render.fps = fps
 
 # ══════════════════════════════════════════════════════════════════
@@ -809,20 +857,27 @@ for o in ALL:
                    random.uniform(0.6, 1.4),
                    random.choice(HARMS), random.choice(HARMS), random.choice(HARMS))
 
-def idle(o, i, t):
+def _idle_at(o, i, t, w=1.0):
+    """Idle evaluated at phase t with amplitude w. Factored out so PREVIEW
+    PADDING can play real idle before and after a one-shot and RAMP ITS
+    AMPLITUDE TO ZERO at the boundary — the clip is then entered from rest
+    rather than from a pose, so there is no pop at the join."""
     if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     pa, pb, amp, ka, kb, kc = JIT[o.name]
     fast = 3 if o in FACE else 1
     TAU = 2 * math.pi
     env = 0.62 + 0.38 * math.sin(TAU * t + pa * 0.5)             # ONE breath per loop
-    a = amp * env
+    a = amp * env * w
     o.rotation_euler[1] += math.radians(2.4 * a * math.sin(TAU*t*ka*fast + pa))
     o.location.x += 0.055 * a * math.sin(TAU*t*kb + pb)
     o.location.z += 0.048 * a * math.cos(TAU*t*kc + pa)
-    o.location.z += 0.115 * math.sin(TAU*t)
+    o.location.z += 0.115 * w * math.sin(TAU*t)
     sc_ = 1.0 + 0.020 * a * math.sin(TAU*t*ka + pb)
     o.scale = (sc_, sc_, sc_)
+
+def idle(o, i, t):
+    _idle_at(o, i, t, 1.0)
 
 # ── FLAP ──────────────────────────────────────────────────────────
 # One square at a time with lag down the chain. Added: the ASYMMETRIC
@@ -846,6 +901,20 @@ def flap(o, i, t):
         # integer harmonic: 0.7 does not close the loop (seam residual 0.66)
         o.rotation_euler[1] += math.radians(1.6 * math.sin(2*math.pi*t + pa))
 
+# ══════════════════════════════════════════════════════════════════
+# PHASE TABLES. Hoisted out of the animation functions on purpose: the
+# creature contract is EMITTED from these same dicts, so a timestamp cannot
+# exist twice and drift. Every number below is consumed by an animation
+# function AND by C.clip(...) in the export block.
+# ══════════════════════════════════════════════════════════════════
+LANCE_P  = {'tele': 0.30, 'snap': 0.34, 'held': 0.52}
+JUDGE_P  = {'dip': 0.07, 'call': 0.24, 'lock': 0.40, 'hang': 0.52,
+            'fall': 0.615, 'smear': 0.628, 'hit': 0.655}
+DODGE_P  = {'anticip': 0.13, 'snap': 0.30, 'absent': 0.52}
+FLINCH_P = {'smear': 0.045}
+REGARD_P = {'lock': 0.30, 'release': 0.62}
+COMBO_P  = {'gather': 0.34, 'fall': 0.66, 'hit': 0.72}
+
 # ── LANCE ─────────────────────────────────────────────────────────
 LANCE_REACH  = 0.82      # per segment. The chain must STOP SHORT of the lens.
 LANCE_ZIG    = 0.60      # alternating throw, TAPERED toward the player
@@ -860,7 +929,7 @@ def _aim_frame():
 
 def lance(o, i, t):
     if o in BLADE: o.scale = (0.001,0.001,0.001); return
-    TELE = 0.30
+    TELE = LANCE_P['tele']
     if t < TELE:
         # WIND-UP, now with a sharp inhale at the end rather than a linear ramp
         if o in SEG:
@@ -883,9 +952,9 @@ def lance(o, i, t):
 
     tt = win(t, TELE, 1.0)
     # phases: snap out -> HELD -> haul back with ring
-    if   tt < 0.34: u = e_out5(tt / 0.34)                         # SNAP
-    elif tt < 0.52: u = 1.0                                       # HELD, fully out
-    else:           u = 1.0 - e_io3(win(tt, 0.52, 1.0))           # haul
+    if   tt < LANCE_P['snap']: u = e_out5(tt / LANCE_P['snap'])                         # SNAP
+    elif tt < LANCE_P['held']: u = 1.0                                       # HELD, fully out
+    else:           u = 1.0 - e_io3(win(tt, LANCE_P['held'], 1.0))           # haul
 
     if o in SEG:
         k = SEG.index(o)
@@ -909,8 +978,8 @@ def lance(o, i, t):
         ru = max(0.0, min(1.0, (u - lag) / max(1e-6, 1.0 - lag)))
         o.location.x -= ru * 0.32
         o.rotation_euler[1] += math.radians(-ru * 3.2)
-        if tt > 0.52:
-            r = win(tt, 0.52, 1.0)
+        if tt > LANCE_P['held']:
+            r = win(tt, LANCE_P['held'], 1.0)
             ring = math.exp(-5.0 * r) * math.sin(r * 15.0) * (0.5 + 0.5 * RAD[o.name])
             o.location.x += ring * 0.16
             o.rotation_euler[1] += math.radians(ring * 4.0)
@@ -925,8 +994,9 @@ JUDGE_AT = (Vector((2.7, -3.4, 0.85)) if MODE == 'anim' else TARGET_POS)
 
 def judgement(o, i, t):
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    T_DIP, T_CALL, T_LOCK, T_HANG, T_FALL = 0.07, 0.24, 0.40, 0.52, 0.615
-    T_SMEAR, T_HIT = 0.628, 0.655
+    T_DIP, T_CALL, T_LOCK = JUDGE_P['dip'], JUDGE_P['call'], JUDGE_P['lock']
+    T_HANG, T_FALL = JUDGE_P['hang'], JUDGE_P['fall']
+    T_SMEAR, T_HIT = JUDGE_P['smear'], JUDGE_P['hit']
 
     if o in BLADE:
         if t < T_DIP: o.scale = (0.001, 0.001, 0.001); return
@@ -1015,7 +1085,7 @@ def judge_combo(o, i, t):
             o.scale = (0.001, 0.001, 0.001); return
         t0, t1, dx, tilt, sk = best
         u = win(t, t0, t1)
-        G, F, H = 0.34, 0.66, 0.72                    # gather / fall / hit
+        G, F, H = COMBO_P['gather'], COMBO_P['fall'], COMBO_P['hit']
         g = e_out5(min(1.0, u / G))
         drop = 0.0
         if u > G:
@@ -1068,7 +1138,7 @@ def judge_combo(o, i, t):
 # turn), a HELD frame at edge-on, and a spring return that overshoots.
 def dodge(o, i, t):
     if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
-    A = 0.13
+    A = DODGE_P['anticip']
     lag = RAD[o.name] * 0.16
     if t < A:
         c = e_ios(t / A)
@@ -1076,9 +1146,10 @@ def dodge(o, i, t):
         o.location.x -= 0.05 * c * (1 if o.location.x >= 0 else -1)
         return
     u = max(0.0, min(1.0, (win(t, A, 1.0) - lag) / max(1e-6, 1.0 - lag)))
-    if   u < 0.34: sw = e_out5(u / 0.34)                          # snap edge-on
-    elif u < 0.46: sw = 1.0                                       # HELD absent
-    else:          sw = 1.0 - e_out5(win(u, 0.46, 1.0))
+    if   u < DODGE_P['snap']: sw = e_out5(u / DODGE_P['snap'])                          # snap edge-on
+    elif u < DODGE_P['absent']: sw = 1.0                                       # HELD ABSENT, and now
+                                                                  # long enough to READ
+    else:          sw = 1.0 - e_io3(win(u, DODGE_P['absent'], 1.0))  # heavier recovery
     o.rotation_euler[2] += math.radians(-11.0 * (1.0 - sw) + 91.0 * sw)
     o.location.x += 0.30 * sw * (1 if o.location.x >= 0 else -1)
 
@@ -1090,13 +1161,13 @@ def flinch(o, i, t):
     if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
     pa, pb, amp = JIT[o.name][:3]
-    if t < 0.045:                                                 # SMEAR
+    if t < FLINCH_P['smear']:                                     # SMEAR
         o.location.x += math.cos(pa) * 0.62 * amp
         o.location.z += math.sin(pa) * 0.62 * amp
         o.scale = (1.0 + 0.12*amp, 1.0, 1.0 - 0.10*amp)
         o.rotation_euler[1] += math.radians(16.0 * amp)
         return
-    x = win(t, 0.045, 1.0)
+    x = win(t, FLINCH_P['smear'], 1.0)
     dmp = 3.2 + 2.6 * amp                                         # per-plate decay
     frq = 2.6 + 1.9 * (pb / 6.283)                                # per-plate frequency
     d = math.exp(-dmp * x) * math.sin(2*math.pi*frq*x)
@@ -1113,12 +1184,12 @@ def regard(o, i, t):
     pa, pb, amp = JIT[o.name][:3]
     lag_in  = (1.0 - RAD[o.name]) * 0.10                          # centre locks first
     lag_out = RAD[o.name] * 0.16                                  # outer releases first
-    if t < 0.30:
-        k = 1.0 - e_out5(max(0.0, min(1.0, (win(t, 0.0, 0.30) - lag_in) / (1.0 - lag_in))))
-    elif t < 0.62:
+    if t < REGARD_P['lock']:
+        k = 1.0 - e_out5(max(0.0, min(1.0, (win(t, 0.0, REGARD_P['lock']) - lag_in) / (1.0 - lag_in))))
+    elif t < REGARD_P['release']:
         k = 0.0                                                   # HELD. she is looking.
     else:
-        k = e_in3(max(0.0, min(1.0, (win(t, 0.62, 1.0) - lag_out) / (1.0 - lag_out))))
+        k = e_in3(max(0.0, min(1.0, (win(t, REGARD_P['release'], 1.0) - lag_out) / (1.0 - lag_out))))
     ph = 2 * math.pi * (0.31 + t * 0.4)
     o.rotation_euler[1] += math.radians(3.1 * amp * k * math.sin(ph + pa))
     o.location.x += 0.075 * amp * k * math.sin(ph * 0.7 + pb)
@@ -1155,26 +1226,154 @@ def disperse(o, i, t):
 #   idle       3.5s   a slow breath
 #   flap       2.2s   a big bird's wingbeat; heron, not sparrow
 #   lance      2.1s   0.63s telegraph, then snap-hold-haul
-#   flinch     0.45s  a startle: onset instant, settled in under half a second
+#   flinch     0.65s  GAME stagger, not a real startle (see dodge)
 #   disperse   2.6s   a long exhale
 #   judgement  3.2s   an overhead swing is ~0.9s; a CALLED-DOWN sword earns more
-#   dodge      0.35s  a real sidestep
+#   dodge      0.75s  GAME convention, and it is a BOSS.
+#
+# CORRECTION. I first cut dodge to 0.37s and flinch to 0.47s by anchoring to
+# PHYSICAL human reaction times — a real sidestep is 0.3-0.4s. Wrong
+# reference class. Game animation is deliberately slower than life because
+# READABILITY BEATS REALISM: Dark Souls roll ~0.75s, Elden Ring ~0.75s,
+# Bloodborne quickstep ~0.45s, Monster Hunter evade 0.75-1.0s, Tekken
+# sidestep ~0.5s. 0.37s is Bayonetta-tier, i.e. the fastest player character
+# in the genre.
+#
+# And she is a BOSS, which is the part I missed. A player dodge can be fast
+# because YOU pressed the button and already know it happened. A boss dodge
+# must be legible to someone who did NOT — otherwise the player fires, the
+# shot misses, and there is no visible reason why, which reads as the game
+# cheating. Boss evades run long on purpose.
 #   regard     2.2s   the HOLD is the point, so this one should feel long
 #   combo      4.4s   hit-hit-(beat)-HIT
-CLIPS = ([('lance_ext', 126, lance), ('judge_ext', 192, judgement),
-          ('dodge_ext', 21, dodge), ('combo_ext', 264, judge_combo)]
+PAD = 60                   # one second of idle either side of a one-shot
+CLIPS = ([('lance_ext', 126, lance, PAD), ('judge_ext', 192, judgement, PAD),
+          ('dodge_ext', 45, dodge, PAD), ('combo_ext', 264, judge_combo, PAD)]
          if MODE == 'ext' else
-         [('lance_fp', 126, lance)] if MODE == 'fp' else
-         [('idle', 210, idle), ('flap', 132, flap), ('lance', 126, lance),
-          ('flinch', 27, flinch), ('disperse', 156, disperse),
-          ('judgement', 192, judgement), ('dodge', 21, dodge),
-          ('regard', 132, regard), ('combo', 264, judge_combo)])
+         [('lance_fp', 126, lance, PAD)] if MODE == 'fp' else
+         [('idle', 210, idle, 0), ('flap', 132, flap, 0),
+          ('lance', 126, lance, PAD), ('flinch', 39, flinch, PAD),
+          ('disperse', 156, disperse, PAD), ('judgement', 192, judgement, PAD),
+          ('dodge', 45, dodge, PAD), ('regard', 132, regard, PAD),
+          ('combo', 264, judge_combo, PAD)])
+
+# ══════════════════════════════════════════════════════════════════
+# EXPORT — declare her once, verify, emit. See tools/creature/
+# crescent_creature.py for why the contract is EMITTED and never written.
+# ══════════════════════════════════════════════════════════════════
+if MODE == 'export':
+    import sys as _sys, subprocess as _sub
+    _sys.path.append(r'\\wsl.localhost\Ubuntu\home\khaled\Kore\tools\creature')
+    from crescent_creature import Creature, sphere, capsule
+
+    OUTDIR = os.path.join(OUT, 'export')
+    os.makedirs(OUTDIR, exist_ok=True)
+
+    # ── two roots. Her body billboards; her attacks emphatically do not.
+    body  = bpy.data.objects.new('ARBELOS_BODY', None)
+    world = bpy.data.objects.new('ARBELOS_WORLD', None)
+    for e in (body, world):
+        bpy.context.collection.objects.link(e)
+    BODY_OBJS = [o for o in ALL if o not in SEG and o not in BLADE]
+    for o in BODY_OBJS: o.parent = body
+    for o in SEG + BLADE: o.parent = world
+
+    # outlines share their fill's name (Blender suffixes .001), which makes the
+    # material manifest ambiguous. Name them for what they are.
+    for o in BODY_OBJS:
+        if '.' in o.name:
+            old = o.name
+            o.name = old.split('.')[0] + '_ink'
+            # REST/JIT/RAD/HGT are keyed by NAME and were built before
+            # this rename; every animation function looks itself up by
+            # o.name, so the keys must move with the object.
+            for _d in (REST, JIT, RAD, HGT):
+                if old in _d: _d[o.name] = _d.pop(old)
+
+    C = Creature('arbelos', height_m=round(_zhi - _zlo, 3),
+                 emitted_by='build_arbelos.py')
+    C.root('ARBELOS_BODY',  billboard='y')
+    C.root('ARBELOS_WORLD', billboard='none')
+    for node, (kind, u) in DIVINE_SPEC.items():
+        C.material(node, REGISTRY_NAME[kind], **u)
+
+    # ── clips. EVERY timestamp below is a PHASE TABLE LOOKUP, never a
+    # literal — the animation and the contract read the same dict.
+    JA = JUDGE_AT if MODE == 'anim' else TARGET_POS
+    C.clip('idle',   210, loop=True)
+    C.clip('flap',   132, loop=True)
+    C.clip('regard', 132, events={'coherent_start': REGARD_P['lock'],
+                                  'coherent_end':   REGARD_P['release']})
+    C.clip('flinch',  39, events={'smear_end': FLINCH_P['smear'],
+                                  'interruptible_again': 1.0})
+    C.clip('dodge',   45, events={'iframe_open':  DODGE_P['snap'],
+                                  'iframe_close': DODGE_P['absent']})
+    C.clip('disperse', 156, events={'gone': 1.0})
+    C.clip('lance',  126, anchor='origin_attached',
+           events={'telegraph_start': 0.0,
+                   'fire': LANCE_P['tele'] + (1 - LANCE_P['tele']) * LANCE_P['snap']},
+           window=(LANCE_P['tele'] + (1 - LANCE_P['tele']) * LANCE_P['snap'],
+                   LANCE_P['tele'] + (1 - LANCE_P['tele']) * LANCE_P['held']),
+           # ORIGIN_LOCAL, and the far end is the chain's OWN REACH — not the
+           # distance to a preview camera, which is what it was.
+           volumes={'fire': capsule(
+               0.45, (0.0, 0.0, 0.0),
+               (0.0, 0.0, -LANCE_REACH * LANCE_N), space='origin_local')})
+    C.clip('judgement', 192, anchor='detached_at_cast',
+           events={'call': JUDGE_P['call'], 'lock': JUDGE_P['lock'],
+                   'fall_start': JUDGE_P['hang'], 'impact': JUDGE_P['hit']},
+           # CAST_LOCAL: the engine drops this where the player was standing.
+           # It first emitted an absolute world point taken from the preview
+           # camera, which would have put every judgement 13.5 m off.
+           volumes={'impact': sphere(1.6, (0.0, 0.4, 0.0), space='cast_local')})
+    C.clip('combo', 264, anchor='detached_at_cast',
+           events={'impact_1': COMBO[0][0] + (COMBO[0][1]-COMBO[0][0]) * COMBO_P['hit'],
+                   'impact_2': COMBO[1][0] + (COMBO[1][1]-COMBO[1][0]) * COMBO_P['hit'],
+                   'impact_3': COMBO[2][0] + (COMBO[2][1]-COMBO[2][0]) * COMBO_P['hit']},
+           # left of you, right of you, then straight down on top of you —
+           # offsets are CAST_LOCAL, from the same COMBO table the animation
+           # reads, so the hit lands where the sword visibly falls.
+           volumes={'impact_1': sphere(1.3, (COMBO[0][2], 0.4, 0.0), space='cast_local'),
+                    'impact_2': sphere(1.3, (COMBO[1][2], 0.4, 0.0), space='cast_local'),
+                    'impact_3': sphere(1.9, (COMBO[2][2], 0.4, 0.0), space='cast_local')})
+
+    # ── bake every clip into its own NLA track so all nine survive export
+    for name, n, fn, _pad in CLIPS:
+        bake(name, n, fn, pad=0, keep_nla=True)
+        for o in ALL:
+            ad = o.animation_data
+            if not ad or not ad.action: continue
+            act = ad.action
+            act.use_fake_user = True
+            tr = ad.nla_tracks.new(); tr.name = name
+            st = tr.strips.new(name, 0, act)
+            st.name = name
+            try: st.action_slot = act.slots[0]     # Blender 4.4+/5.x slotted actions
+            except Exception: pass
+            ad.action = None
+        print('  baked %s' % name)
+
+    bpy.context.scene['crescentMaterials'] = True   # the SCENE-extras marker
+    glb = os.path.join(OUTDIR, 'arbelos.glb')
+    bpy.ops.export_scene.gltf(
+        filepath=glb, export_format='GLB', use_selection=False,
+        export_animations=True, export_animation_mode='NLA_TRACKS',
+        export_apply=False, export_yup=True,
+        export_extras=True)   # carries the crescentMaterials scene marker
+    print('  wrote %s' % glb)
+
+    C.check_declared_events_in_range()
+    C.check_attacks_have_telegraph()
+    C.check_volume_spaces()
+    C.verify_glb(glb)
+    C.emit(OUTDIR)
+    raise SystemExit
 
 if MODE not in ('fp', 'ext'):
     sc.render.resolution_x = sc.render.resolution_y = 620
-for name, n, fn in CLIPS:
+for name, n, fn, pad in CLIPS:
     if ONLY and name not in ONLY: continue
-    bake(name, n, fn)
+    bake(name, n, fn, pad=pad)
     d = os.path.join(OUT, 'anim', name)
     # WIPE IT. Renders overwrite f_0000..f_00NN and leave anything beyond
     # behind, so every clip I ever SHORTENED kept the tail of its previous,
