@@ -380,6 +380,13 @@ try:
         MODE = fh.read().strip() or 'still'
 except Exception: pass
 
+# ".arbcfg = anim:flap,flinch,dodge" renders a SUBSET, so a one-clip fix
+# does not cost a nine-minute full bake
+ONLY = None
+if ':' in MODE:
+    MODE, _o = MODE.split(':', 1)
+    ONLY = set(x.strip() for x in _o.split(',') if x.strip())
+
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in \
     [i.identifier for i in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
@@ -716,7 +723,7 @@ def new_action(name):
         a.use_fake_user = True
         o.animation_data.action = a
 
-def bake(name, nframes, fn, fps=30):
+def bake(name, nframes, fn, fps=60):
     """fn(o, i, t) sets the object's transform for normalised time t."""
     new_action(name)
     for f in range(nframes + 1):
@@ -784,24 +791,37 @@ for o in ALL:
 # repeats, the face at TRIPLE frequency. Added: a slow BREATH ENVELOPE, so
 # she has calm stretches and agitated ones instead of one constant level of
 # fidget — the amplitude itself drifts.
-PRIMES = [7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79]
+# LOOPING, PROPERLY. A cyclic clip must match POSITION AND VELOCITY at the
+# seam or it hitches every pass. My first version used k = prime/23 —
+# deliberately non-integer so the plates never repeat against each other —
+# but sin(2*pi*t*k) only closes at t=1 when k is a WHOLE NUMBER. The thing
+# that made her never repeat was also making her pop.
+#
+# Both are achievable: give every plate its own INTEGER harmonic. Different
+# integers mean the plates still drift out of step with one another within
+# the cycle, and every one of them completes a whole number of turns by t=1,
+# so the seam is exact in position and in derivative.
 random.seed(4)
-JIT = {o.name: (random.uniform(0, 6.283), random.uniform(0, 6.283),
-                random.uniform(0.6, 1.4)) for o in ALL}
+HARMS = (1, 2, 3, 4, 5, 7)
+JIT = {}
+for o in ALL:
+    JIT[o.name] = (random.uniform(0, 6.283), random.uniform(0, 6.283),
+                   random.uniform(0.6, 1.4),
+                   random.choice(HARMS), random.choice(HARMS), random.choice(HARMS))
 
 def idle(o, i, t):
     if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    pa, pb, amp = JIT[o.name]
-    fast = 3.0 if o in FACE else 1.0
-    k = PRIMES[i % len(PRIMES)] / 23.0
-    env = 0.62 + 0.38 * math.sin(2*math.pi*t*0.37 + pa*0.5)      # BREATH
-    amp *= env
-    o.rotation_euler[1] += math.radians(2.4 * amp * fast * math.sin(2*math.pi*t*k + pa))
-    o.location.x += 0.055 * amp * math.sin(2*math.pi*t*k*0.7 + pb)
-    o.location.z += 0.048 * amp * math.cos(2*math.pi*t*k*1.3 + pa)
-    o.location.z += 0.115 * math.sin(2*math.pi*t)
-    sc_ = 1.0 + 0.020 * amp * math.sin(2*math.pi*t*k*0.5 + pb)
+    pa, pb, amp, ka, kb, kc = JIT[o.name]
+    fast = 3 if o in FACE else 1
+    TAU = 2 * math.pi
+    env = 0.62 + 0.38 * math.sin(TAU * t + pa * 0.5)             # ONE breath per loop
+    a = amp * env
+    o.rotation_euler[1] += math.radians(2.4 * a * math.sin(TAU*t*ka*fast + pa))
+    o.location.x += 0.055 * a * math.sin(TAU*t*kb + pb)
+    o.location.z += 0.048 * a * math.cos(TAU*t*kc + pa)
+    o.location.z += 0.115 * math.sin(TAU*t)
+    sc_ = 1.0 + 0.020 * a * math.sin(TAU*t*ka + pb)
     o.scale = (sc_, sc_, sc_)
 
 # ── FLAP ──────────────────────────────────────────────────────────
@@ -823,7 +843,8 @@ def flap(o, i, t):
         w = stroke((t - 0.19) % 1.0)                             # body rides it LATE
         o.location.z += 0.080 * w
         pa = JIT[o.name][0]
-        o.rotation_euler[1] += math.radians(1.6 * math.sin(2*math.pi*t*0.7 + pa))
+        # integer harmonic: 0.7 does not close the loop (seam residual 0.66)
+        o.rotation_euler[1] += math.radians(1.6 * math.sin(2*math.pi*t + pa))
 
 # ── LANCE ─────────────────────────────────────────────────────────
 LANCE_REACH  = 0.82      # per segment. The chain must STOP SHORT of the lens.
@@ -961,6 +982,87 @@ def judgement(o, i, t):
         o.location.z += -0.87 * (1.0 - settle(e, 2.2, 5.2))       # rings back UP
         o.location.x += math.exp(-4.5*e) * math.sin(e*19.0) * 0.14 * (0.4+RAD[o.name])
 
+# ── JUDGEMENT x3, A COMBO ─────────────────────────────────────────
+# Authored as ONE clip, not three chained, because the player has to read it
+# as a single commitment they cannot cancel. Rhythm is hit-hit-HIT: two quick
+# diagonals then a beat of silence then the vertical, which is the oldest
+# trick in combo design — the pause is what makes the third one land.
+#
+# Left and right come in TILTED (the sword's own offsets are rotated, so it
+# falls at an angle rather than being a vertical sword nudged sideways), and
+# the third is bigger, slower and straight down.
+# Each hit lasts only ~1.2s, and a fall from BLADE_TOP 13.9 spends most of
+# that above the frame — you glimpse the sword instead of reading it. The
+# combo assembles LOWER so the gather is visible inside the shot.
+COMBO_TOP = 9.2
+
+COMBO = [                # (t_start, t_end, x offset, tilt deg, scale)
+    (0.10, 0.365, -2.30, -30.0, 0.86),
+    (0.335, 0.60,  2.30,  30.0, 0.86),
+    (0.66, 1.00,   0.00,   0.0, 1.24),
+]
+
+def judge_combo(o, i, t):
+    if o in SEG: o.scale = (0.001, 0.001, 0.001); return
+
+    if o in BLADE:
+        j = BLADE.index(o); off = BLADE_OFF[o.name]
+        best = None
+        for (t0, t1, dx, tilt, sk) in COMBO:
+            if t0 <= t < t1:
+                best = (t0, t1, dx, tilt, sk); break
+        if best is None:
+            o.scale = (0.001, 0.001, 0.001); return
+        t0, t1, dx, tilt, sk = best
+        u = win(t, t0, t1)
+        G, F, H = 0.34, 0.66, 0.72                    # gather / fall / hit
+        g = e_out5(min(1.0, u / G))
+        drop = 0.0
+        if u > G:
+            drop = (COMBO_TOP - BLADE_REST) * e_in3(win(u, G, F)) ** 0.72
+        pz = COMBO_TOP - drop
+        ang = j * 2.399
+        sx = math.cos(ang) * 3.6 * (1 - g)
+        sz = math.sin(ang) * 2.6 * (1 - g)
+        # rotate the sword's own layout so the whole blade arrives TILTED
+        c, sn = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
+        ox = (off.x * c - off.z * sn) * g * sk
+        oz = (off.x * sn + off.z * c) * g * sk
+        o.location = Vector((JUDGE_AT.x + dx + ox + sx, JUDGE_AT.y, pz + oz + sz))
+        o.rotation_euler = (0.0,
+                            math.radians(210 * (1 - g) * (1 if j % 2 else -1)),
+                            math.radians(tilt * g))
+        o.scale = (g * sk, 1.0, g * sk)
+        if u >= H:
+            e = win(u, H, 1.0)
+            o.location.x += math.cos(ang) * e_out5(e) * 4.6
+            o.location.z += math.sin(ang) * e_out5(e) * 2.2 + e * e * 0.9
+            k = max(0.02, g * sk * (1.0 - e_in2(e) * 0.95))
+            o.scale = (k, 1.0, k)
+        return
+
+    # HER: she throws THREE, and the third one costs her more
+    lag = RAD[o.name] * 0.05
+    z = 0.0; rot = 0.0
+    for n, (t0, t1, dx, tilt, sk) in enumerate(COMBO):
+        if not (t0 - 0.06 <= t < t1): continue
+        u = max(0.0, win(t, t0 - 0.06, t1) - lag) / max(1e-6, 1.0 - lag)
+        amp = 0.55 if n < 2 else 0.95                 # bigger wind-up on the last
+        if   u < 0.10: z += -0.16 * amp * e_ios(u / 0.10)          # anticipate
+        elif u < 0.34: z += e_back(win(u, 0.10, 0.34)) * 0.86 * amp
+        elif u < 0.62: z += 0.86 * amp
+        elif u < 0.70:
+            z += 0.86 * amp - e_in3(win(u, 0.62, 0.70)) * 1.55 * amp   # drive
+        else:
+            e = win(u, 0.70, 1.0)
+            z += (0.86 - 1.55) * amp * (1.0 - settle(e, 2.3, 5.4))
+            rot += math.exp(-4.6*e) * math.sin(e*18.0) * 3.6
+        rot += math.radians(0.0)
+        if n == 2: rot += -2.5 * min(1.0, u)          # she leans into the last
+    o.location.z += z
+    o.rotation_euler[1] += math.radians(rot)
+    o.location.x += math.exp(-3.0*t) * math.sin(t*26.0) * 0.05
+
 # ── DODGE ─────────────────────────────────────────────────────────
 # Zero cross-section. Added: ANTICIPATION (a counter-rotation before the
 # turn), a HELD frame at edge-on, and a spring return that overshoots.
@@ -987,7 +1089,7 @@ def dodge(o, i, t):
 def flinch(o, i, t):
     if o in BLADE: o.scale = (0.001,0.001,0.001); return
     if o in SEG: o.scale = (0.001, 0.001, 0.001); return
-    pa, pb, amp = JIT[o.name]
+    pa, pb, amp = JIT[o.name][:3]
     if t < 0.045:                                                 # SMEAR
         o.location.x += math.cos(pa) * 0.62 * amp
         o.location.z += math.sin(pa) * 0.62 * amp
@@ -1008,7 +1110,7 @@ def flinch(o, i, t):
 # genuinely motionless, and the release BLOOMS outward instead of fading.
 def regard(o, i, t):
     if o in SEG or o in BLADE: o.scale = (0.001, 0.001, 0.001); return
-    pa, pb, amp = JIT[o.name]
+    pa, pb, amp = JIT[o.name][:3]
     lag_in  = (1.0 - RAD[o.name]) * 0.10                          # centre locks first
     lag_out = RAD[o.name] * 0.16                                  # outer releases first
     if t < 0.30:
@@ -1044,19 +1146,44 @@ def disperse(o, i, t):
     o.location.z += 0.58 * e_in2(e)
     o.location.x += 0.20 * e * math.cos(JIT[o.name][0])
 
-CLIPS = ([('lance_ext', 66, lance), ('judge_ext', 108, judgement),
-          ('dodge_ext', 26, dodge)] if MODE == 'ext' else
-         [('lance_fp', 66, lance)] if MODE == 'fp' else
-         [('idle', 150, idle), ('flap', 96, flap), ('lance', 66, lance),
-          ('flinch', 30, flinch), ('disperse', 96, disperse),
-          ('judgement', 108, judgement), ('dodge', 26, dodge),
-          ('regard', 54, regard)])
+# TIMING, IN HUMAN SECONDS, AT 60fps. The first pass never checked a single
+# duration against anything real, and two were badly wrong: a 0.87s dodge
+# (a human sidestep is 0.3-0.4s) and a 1.0s flinch (a startle settles in
+# 0.3-0.5s). Authoring at 30 for a 60fps game also under-sampled every fast
+# moment — the 2-frame impact smears were 66ms and wanted to be 4 frames.
+#
+#   idle       3.5s   a slow breath
+#   flap       2.2s   a big bird's wingbeat; heron, not sparrow
+#   lance      2.1s   0.63s telegraph, then snap-hold-haul
+#   flinch     0.45s  a startle: onset instant, settled in under half a second
+#   disperse   2.6s   a long exhale
+#   judgement  3.2s   an overhead swing is ~0.9s; a CALLED-DOWN sword earns more
+#   dodge      0.35s  a real sidestep
+#   regard     2.2s   the HOLD is the point, so this one should feel long
+#   combo      4.4s   hit-hit-(beat)-HIT
+CLIPS = ([('lance_ext', 126, lance), ('judge_ext', 192, judgement),
+          ('dodge_ext', 21, dodge), ('combo_ext', 264, judge_combo)]
+         if MODE == 'ext' else
+         [('lance_fp', 126, lance)] if MODE == 'fp' else
+         [('idle', 210, idle), ('flap', 132, flap), ('lance', 126, lance),
+          ('flinch', 27, flinch), ('disperse', 156, disperse),
+          ('judgement', 192, judgement), ('dodge', 21, dodge),
+          ('regard', 132, regard), ('combo', 264, judge_combo)])
 
 if MODE not in ('fp', 'ext'):
-    sc.render.resolution_x = sc.render.resolution_y = 700
+    sc.render.resolution_x = sc.render.resolution_y = 620
 for name, n, fn in CLIPS:
+    if ONLY and name not in ONLY: continue
     bake(name, n, fn)
     d = os.path.join(OUT, 'anim', name)
+    # WIPE IT. Renders overwrite f_0000..f_00NN and leave anything beyond
+    # behind, so every clip I ever SHORTENED kept the tail of its previous,
+    # longer version — flinch was encoding 3 frames of a superseded take.
+    if os.path.isdir(d):
+        for old in os.listdir(d):
+            if old.endswith('.png'):
+                try: os.remove(os.path.join(d, old))
+                except OSError: pass
     os.makedirs(d, exist_ok=True)
     sc.render.filepath = os.path.join(d, 'f_')
     bpy.ops.render.render(animation=True)
