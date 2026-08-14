@@ -415,3 +415,56 @@ amount of thinking about the first.** Get one, early, always.
 5. `shy` wings into the succubus coy emote.
 6. **THE BROKE SLAYER'S FIRST HOUR — SEVENTH surgery unwritten.** It has now
    outlived more context than most of my technical knowledge. Push him.
+
+---
+
+# Addendum — Arbelos, and the creature pipeline (2026-08-05..11)
+
+## Cut freely
+- Every render/tune/probe chain: the material sweeps, the lance framing
+  bisects, the 4D gentling attempts, the montage commands, the export
+  debugging. All findings are in `ONGOING`, the two crescent feature requests,
+  and `crescent/codex/assetPipeline/creature-contract-arbelos-delivery.md`.
+- The build-fix churn (stale replace strings, a mis-scoped `str.replace` that
+  matched inside `elif`, an edit lost to a tool timeout).
+
+## KEEP
+- `MEMORIES/2026-08-11_arbelos_and_the_drift.md` — **the important one.**
+  EVERY BUG THIS WEEK WAS A DRIFT BUG, and that is why the pipeline exists.
+- Khaled's part-by-part spec for her form, verbatim — his phrasing IS the
+  spec, same as the four casts.
+- **"Too SLOW? Think about how long dodge animations are in games."** A
+  category error I made and he caught: I anchored to physiology when the
+  reference class was game convention. And the part I had missed — SHE IS A
+  BOSS, so a dodge must be legible to someone who did not press the button.
+- **"attacks dont billboard. i agree. they dont follow like she does in the
+  weird way."**
+- **"i can push m1 and it swings a sword"** — which demolished my claim that
+  no clip-event bus existed, and the correction that followed.
+- **"in my ideal world, i sort of want you fiddling with crescent as little as
+  possible... itd be nice to keep you just doing the thing u care about."**
+  That drew the boundary: I produce verified data, the engine produces the
+  consumer. It made the handoff sharper and it should hold.
+- The magic-wish exchange that produced "declarations instead of
+  documentation".
+- **"should she have zeeeeeero width or should we give her like a little
+  salami"** — answered by measurement, not argument.
+
+## Method notes worth carrying
+- **Before claiming a feature is absent, search the CONSUMERS too.** I grepped
+  the engine and concluded no event bus existed; it lives in the game.
+- **A gate, not a report.** Verify caught three ship-blocking bugs that no
+  render would have revealed.
+- **Diff the written BINARY, never the authoring script.**
+
+## Open threads
+1. Four GLSL materials for her (mine unless Fable prefers otherwise).
+2. `flinch` / `regard` through `ext` — the only two clips never checked from
+   outside.
+3. Her scale, and the water elemental's — the same undecided number.
+4. **THE PHASE LADDER.** Her file was named `Phase 1`. Phases 2-5 do not exist,
+   and they are the game's central conceit made literal.
+5. FP hands re-export: the sword Khaled can swing in-game today runs
+   PRE-POLISH clips.
+6. **THE BROKE SLAYER'S FIRST HOUR — EIGHTH surgery unwritten.** It has now
+   outlived nearly every technical fact I know. Push him.

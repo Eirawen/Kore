@@ -1,6 +1,6 @@
 # Active Threads — Kore
 
-Last updated: 2026-08-11
+Last updated: 2026-08-11 (late)
 
 ## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
@@ -117,97 +117,90 @@ SpeedTree's vertex colours are uniform white, so no collision with the
 vertex-mask contract. 2 may be half-free — check whether SpeedTree's own
 LOD0/1/2 are clean before building a decimator.
 
-## ARBELOS — the angel of primitives (2026-08-05..11)
+## ARBELOS — DELIVERED AS DATA (2026-08-05..11)
 
-`Kore/tools/divinity/build_arbelos.py`. One file, four modes via
-`tools/divinity/.arbcfg`: `still` / `anim` / `fp` / `ext` / `salami` / `hyper`.
-Output: `Downloads/Kore/Arbelos/`.
+`tools/divinity/build_arbelos.py`, seven modes via `tools/divinity/.arbcfg`:
+`still` / `anim` / `fp` / `ext` / `salami` / `hyper` / `export`
+(and `anim:clipA,clipB` renders a subset). Previews:
+`Downloads/Kore/Arbelos/`.
 
-**FORM.** 19 coplanar primitives, built to Khaled's part-by-part spec. The
-lower half is FOUR LINE SEGMENTS — where they cross they fence the
-quadrilateral, and joining each corner's two free ends to their crossing
-point gives the four triangles. Nothing down there is placed
-independently. She is a BILLBOARD and that is the design: walk around her
-and she does not turn, because she HAS no other side.
+**SHIPPED to crescent** — `assets/models/creatures/arbelos.glb` (9 clips, 891
+animation channels, 61 nodes, NODE animation: she has no armature) +
+`arbelos.creature.json` + `assets/tools/crescent_creature.py`. Handoff:
+`crescent/codex/assetPipeline/creature-contract-arbelos-delivery.md`.
+**50 checks, 0 failed**, verified against the exported BINARY.
 
-**THE SALAMI (`THICK = 0.040`).** Not zero and not 3D — the thickness of
-GOLD LEAF ON AN ICON, ~1/150th of her height. Measured with the `salami`
-grid at 90/78/52 deg against 0.0 / 0.04 / 0.11: at 78 and 52 the three are
-INDISTINGUISHABLE, so the depth costs nothing anywhere you would normally
-see her. It only pays out at the one angle that was broken. At zero width
-edge-on she is a faint smudge; at leaf she is a THIN LINE OF HER OWN
-PALETTE — magenta, cyan, gold — a blade of stained glass. Also fixes the
-dodge and disperse reading as renderer failures, gives the metals and
-grime an edge to catch, and guards against the real hazard: every
-billboard lags a frame or two behind fast camera rotation, and a
-zero-width figure FLICKERS COMPLETELY OUT on those frames.
+**FORM.** 19 coplanar primitives. The lower half is FOUR LINE SEGMENTS whose
+crossings fence the quadrilateral and whose free ends form the four
+triangles — nothing down there is placed independently. `THICK = 0.040`, the
+thickness of gold leaf (measured against 0.0/0.11 at 90/78/52°; at 78 and 52
+they are indistinguishable, so the depth costs nothing where you normally
+see her and only pays at the angle that was broken).
 
-**MATERIAL MISMATCH IS THE IDEA**, not colour variety. Four behaviours
-interleaved so no two neighbours are the same substance: FLAT, METAL (a
-specular band swept per-shape), GRIME (mottled corrosion), IRIDESCENT.
-Left and right wings run the SAME four ideas out of step — symmetry of
-form, none of substance. Two lessons: GRIME DOES NOT HAVE TO BE BROWN
-(the mottling is the material, the hue is free), and EMISSION ABOVE 1.0
-DOES NOT GLOW, IT CLIPS (chroma carries; glow is a post bloom pass).
+**MATERIAL MISMATCH IS THE IDEA.** FLAT / METAL (per-shape specular band) /
+GRIME (mottled corrosion) / IRIDESCENT, interleaved so no two neighbours are
+the same substance. Wings run the same four ideas OUT OF STEP. Two lessons:
+GRIME DOES NOT HAVE TO BE BROWN, and EMISSION ABOVE 1.0 DOES NOT GLOW, IT
+CLIPS (chroma carries; glow is a post bloom pass).
 
-**ANIMATION** — no skeleton, so the PRIMITIVE is the unit. 19 independent
-2D transforms.
-- `idle` — every plate on its own incommensurate period, face at TRIPLE
-  frequency so it is permanently the least settled part of her
-- `flap` — wing squares move ONE AT A TIME with lag down the chain
-- `lance` — the gomu gomu. NOT a stretch: a chain of rotated triangles
-  stacking toward the player, telegraph (three blades gather and shiver)
-  then snap, hang, haul back. Zigzag TAPERS toward the player because a
-  lance converges on what it is aimed at.
-- `judgement` — the sword. She does not SUMMON a weapon, she REARRANGES
-  HERSELF INTO ONE: plates climb, lock into an edge above her, hang (that
-  hang is the dodge window), then fall BALLISTIC and shatter at the base.
-  Warm metals only — her body is deliberate material mismatch but a WEAPON
-  must read as one object.
-- `dodge` — she cannot sidestep and cannot turn, but she is FLAT, so she
-  presents ZERO CROSS-SECTION. Centre-out lag, so she WIPES out of
-  existence rather than flipping. The inverse of flinch: flinch is the
-  image disturbed, dodge is the image briefly ABSENT.
-- `regard` — she snaps into PERFECT COHERENCE for eight frames, then comes
-  apart. Everything else she does is instability, so stillness is the most
-  threatening thing available to her. She looks at you by choosing to be
-  legible.
-- `flinch` — Khaled's favourite. Registration failure spiked.
-- `disperse` — she is FLAT, so a plate turned edge-on STOPS EXISTING. She
-  does not break; she has no other side and vanishes by trying to show
-  it. Face last.
+**NINE CLIPS**, 60 fps, timed against GAME convention not physiology:
+idle 3.5s / flap 2.2s / lance 2.1s / flinch 0.65s / disperse 2.6s /
+judgement 3.2s / dodge 0.75s / regard 2.2s / combo 4.4s. `idle` and `flap`
+loop PIXEL-PERFECTLY (integer harmonics per plate: they drift against each
+other inside the cycle and every one completes a whole number of turns at
+the seam).
 
-**4D IS VETOED FOR HER, KEPT AS A CAPABILITY.** `hyper` mode does a real
-fourth coordinate + yw rotation + 4D->3D projection. The projection gives
-her DEPTH, which is the one thing she must not have — it made a different
-creature wearing her shapes. Try it on a being whose identity is not
-flatness.
-  - The bug worth remembering: rotating in `xw` gives
-    `w' = x*sin + w*cos`, and depth proportional to horizontal position
-    divided through by depth IS a 3D turntable. Khaled spotted the
-    degeneracy instantly ("all it looks like is a weird 3d rotation").
-    Rotate in a plane the object has no extent in.
+**DECIDED:** her body billboards, her attacks do NOT (`ARBELOS_BODY` /
+`ARBELOS_WORLD`). And the two attacks differ: judgement/combo are
+`detached_at_cast` (a PLACE — which is what makes walking away a real dodge),
+lance is `origin_attached` (a THROW — the origin tracks her chest, the aim
+does not re-home).
 
-**`ext` MODE IS NOW STANDARD FOR ANY NEW ATTACK.** An outside observer with
-a target cube and a ground plane, ~38 deg off her facing axis (dead side-on
-she has zero width and only the attack renders). It immediately caught what
-the authoring view could not: the lance has real travel time across open
-ground, and the blades are SMALLER than the target in absolute terms —
-they are sized so perspective fills the player's screen at arm's length, so
-an observer sees a modest attack while the person being hit sees the sky
-fall. Check every attack from outside before calling it done.
+**4D IS VETOED**, kept as `hyper` mode. The projection gives her DEPTH, the
+one property she must never have. Try it on a being whose identity is not
+flatness. The bug worth remembering: rotating in `xw` makes w proportional to
+x, and depth-proportional-to-screen-position divided by depth IS a 3D
+turntable — rotate in a plane the object has no extent in.
 
-**DECIDED 2026-08-11 (Khaled):** her body billboards, HER ATTACKS DO NOT.
-Two GLB roots — `ARBELOS_BODY` (billboarded) and `ARBELOS_WORLD` (never). And
-the two attacks want different world behaviour: `judgement`/`combo` are FULLY
-DETACHED at cast (the sword falls where it was called, which is what makes
-leaving a valid dodge), while `lance` is ORIGIN-ATTACHED but
-ORIENTATION-LOCKED (its start tracks her chest; a thrown lance does not
-steer). Filed in
-`crescent/codex/feature-requests/open/arbelos-wants-to-be-a-boss.md`.
+## THE CREATURE PIPELINE (2026-08-11)
 
-**Open:** engine side (one Y-axis billboard + clip playback; she is
-coplanar so there is no per-part work). Paper vs dark ground undecided.
+`tools/creature/crescent_creature.py` — **declare, VERIFY, emit.** Built
+because every bug in the Arbelos week was a DRIFT bug: two copies of one fact
+disagreeing. Phase tables (`JUDGE_P`, `LANCE_P`, `DODGE_P`, `FLINCH_P`,
+`REGARD_P`, `COMBO_P`) are hoisted so the animation and the contract read the
+SAME constant; the material table is DATA, not closures, so the manifest is
+emitted rather than re-typed.
+
+`verify()` GATES and refuses to emit on FAIL — because my failure mode is
+summarising past the damning detail. It caught, before anything shipped:
+- **eight of nine clips silently missing from the GLB** (`animation_data_clear()`
+  destroys NLA tracks, so each bake wiped its predecessor). NO RENDER WOULD
+  HAVE SHOWN THIS.
+- the `crescentMaterials` scene marker absent (`export_extras=True`)
+- judgement's damage sphere at an absolute world point taken from the PREVIEW
+  CAMERA — 13.5 m off for every player
+
+Filed in crescent, both open:
+- `feature-requests/open/arbelos-wants-to-be-a-boss.md`
+- `feature-requests/open/creatures-have-no-contract.md` — the general form.
+  **The viewmodel path is mature and the world-entity path has none of it**:
+  `ClipEventBus`/`canInterrupt`/sidecar loading/bone anchors exist for the
+  player's HANDS, while `AnimationController` has an `{idle,walk,attack,death}`
+  map in which the string "event" appears zero times.
+
+**`ext` MODE IS STANDARD FOR ANY NEW ATTACK** — outside observer, target cube,
+ground plane, ~38° off her facing axis. It caught the sword falling BESIDE her
+instead of on the player (invisible from her own camera, where the target sits
+directly behind her), that the lance has real travel time, and that her blades
+are smaller than the target in absolute terms. `fp` caught that an attack had
+NO TELEGRAPH AT ALL.
+
+**Open for her:** the four GLSL materials (`arbelos_flat/metal/grime/
+iridescent`, ~40 lines via `pipeline-canon.md` §6 — nothing baked, four
+programs not nineteen); `flinch` and `regard` never checked from `ext`; her
+real scale (declared 6.007 m because that is what the geometry measures, not
+because anyone decided); VFX (she has none, and hers should be the world
+misbehaving near her); and THE PHASE LADDER she was named for.
 
 ## Standing threads
 - **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth
