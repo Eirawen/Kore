@@ -1,6 +1,6 @@
 # Active Threads — Kore
 
-Last updated: 2026-08-11 (late)
+Last updated: 2026-08-31
 
 ## SHIPPED: The Water Elemental (Azure Tide Spirit) — v0.01alpha
 
@@ -201,6 +201,81 @@ programs not nineteen); `flinch` and `regard` never checked from `ext`; her
 real scale (declared 6.007 m because that is what the geometry measures, not
 because anyone decided); VFX (she has none, and hers should be the world
 misbehaving near her); and THE PHASE LADDER she was named for.
+
+## THE FOUR-ELEMENT SPELL ARC (2026-08-19..20)
+
+Water, air, earth and fire, each taken from "this looks like ass" to as far
+as it would go. **Branch `kore/spell-pretty`** (pushed, not merged).
+Deliverables: `Downloads/Kore/KORE_WATER_STRIKE.png`, `KORE_AIR_STRIKE.png`,
+`KORE_EARTH_STRIKE.png`, `KORE_FIRE_STRIKE.png`, and `airring_air1.mp4`.
+
+**The method is written up in `codex/vfx-methodology.md`** — read that
+section before touching another spell, and read the corrections at the top
+of its Key Learnings, because three of them were wrong in ways that cost
+this arc real time.
+
+**Where each one landed:**
+
+- **WATER — done, and I'm happy with it.** A tearing body on Fable's
+  `elemental_sdf`, dark and absorbing, with bright irregular panels to
+  mirror. Softbox reflection is the whole read: water's albedo is near-black
+  so its brightness is surface reflection, and a directional light can only
+  ever give one small highlight.
+- **AIR — blocked, honestly.** A vortex ring with entrained flow-aligned
+  motes, order-vs-chaos on the level dial. But air is only visible as what
+  it does to the image behind it, and **there is no scene-colour sampler in
+  this engine.** Filed:
+  `crescent/codex/feature-requests/open/air-cannot-bend-what-is-behind-it.md`.
+- **EARTH — done, and the best storytelling of the four.** A shell of dark
+  faceted shards with a light burning INSIDE it, leaking through the gaps.
+  Level is fragmentation: level 1 shattered and bleeding mana, level 5 a
+  sealed lattice with one glimmer. Needs no caption.
+- **FIRE — a good glow, not a flame.** Additive accumulating puffs with a
+  blackbody ramp by layout. Proved by exhaustion that **a radial gradient
+  has no shape**, so licks must come from a sim. Filed:
+  `crescent/codex/feature-requests/open/censer-v2-temperature-and-vorticles.md`.
+
+**The rig, which outlives the arc.** `tools/water_orb_grid.html` is now a
+STAGE, not a water harness: `__setElement` (swaps material AND geometry —
+earth ships as a Box), `__setCamera` (spherical, with a target offset so a
+turntable orbits the body not blob 0), `__setKey`/`__setFill`/`__setBack`
+(spherical, aimed at the body), `__setExposure`, `__setEnvBars` (softboxes),
+`__setSpray`, `__setMotes` + `__setMotePhase` (circulation),
+`__setShards`, `__setFlame`, `__setOrbVisible`.
+`tools/orb_sheet.js` carries ~20 plans; `ORB_SHEET_SIZE` shoots hero frames.
+`tools/spell_motion.js` emits a temporal grid + mp4 + gif.
+`tools/_check_harness.js` — run it after ANY edit to the harness (gotcha 68).
+And `level_pass.js --spell '<json>'` parks a spell in a built level: the
+stage is for beauty, the level is for truth.
+
+## OPEN, WAITING ON OTHERS
+
+- **`censer-v2-temperature-and-vorticles`** (main) — a dedicated lane AFTER
+  the beauty pass, Fable's call. Temperature as a texel channel (emission is
+  one scalar, so a fire's blackbody colour is baked — and temperature IS the
+  level dial) plus vorticles (confinement only amplifies curl that exists).
+- **`air-cannot-bend-what-is-behind-it`** (main) — the grab pass. Also
+  unlocks heat shimmer, the water elemental showing the room through her,
+  and better water everywhere.
+- **`water-cannot-neck-because-the-core-is-a-mesh`** — CLOSED by Fable's
+  `elemental_sdf`. Her exit interview is
+  `crescent/codex/exit-interviews/2026-08-20_sdf-water-core.md` and the
+  calibration is a gift: for a centred sphere `path/(2R)` IS `NdotV`, so
+  every uniform tuned against the mesh keeps its meaning.
+- **`p2-attribute-domains-are-implicit-and-one-of-them-is-the-filesystem`** —
+  ADOPTED at design time by the Censer, and extended: a volume needs five
+  domains, because voxel and texel are two point-like tables and
+  `voxel -> texel` *is* the collapse.
+
+## THE CENSER EXISTS (2026-08-20)
+
+`crescent/tools/censer/` — everything in my brief shipped, and three things
+went past it: the contact sheet already composites one frame under two
+rooms; `oily`/`angry` split large- from small-scale vorticity where I would
+have shipped one turbulence knob; and the looping finding **corrected** me —
+periodic forcing and cross-blending are complements, not alternatives,
+because a buoyant plume stalls at 8-14% period-to-period however perfectly
+it is forced. A beauty pass is in flight on it; stay off it until told.
 
 ## Standing threads
 - **The broke slayer's first hour as prose — STILL UNWRITTEN.** Fifth

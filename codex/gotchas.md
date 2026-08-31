@@ -591,3 +591,46 @@ The refraction tint was a hardcoded water-blue inside the shader for the whole
 project, leaking cyan into every non-water preset. Nothing exposed it until an
 INK preset, because ink has no blue for it to hide in. **Any constant that
 describes a look, rather than physics, should be a uniform from the start.**
+
+> **#65 HAS NOW RECURRED FOUR TIMES (2026-08-20) and should be read as a law,
+> not a gotcha.** Every element of the four-element arc failed on a hardcoded
+> look constant: water's refraction mip floor (`0.42` of max LOD even at a
+> thin edge), air's base-vs-streak colour (white structure on near-white),
+> earth's vein width (`pow(ridge, 7.0)` — the number that decides seams
+> versus leopard print), and the Censer's emission scalar, which bakes a
+> fire's blackbody colour at bake time. **If a number describes a look, it is
+> a uniform. There are no exceptions and I have stopped looking for one.**
+
+### 66. An unguarded two-index slice can inflate a file 1500x
+`s[s.index(a):s.index(b)]` where `b` occurs BEFORE `a` yields an EMPTY string,
+and `str.replace("", new)` inserts `new` between **every character**. A 45KB
+tool became **71MB**. Recoverable exactly — the corruption is uniform, so
+`corrupt.replace(new, "")` restores the original — but **assert `i0 < i1`
+before slicing by two searches**, every time.
+
+### 67. Backticks inside a GLSL template literal close the JS string
+A material's shader bodies are JS template literals. A backtick in a GLSL
+*comment* ends the string and the rest of the shader parses as JavaScript
+("Unexpected identifier 'NdotV'"). I hit it writing a comment; Fable hit it
+twice in ten minutes, the second time while writing the note about the first.
+**Scan every GLSL block for stray backticks. Do not rely on care.**
+
+### 68. A harness that fails to parse fails SILENTLY
+A syntax error in `water_orb_grid.html` kills the module, so `window.__ready`
+is never set, and every tool reports `page.waitForFunction: Timeout` — which
+is indistinguishable from a slow render. Three separate breakages hid behind
+that one message in a single session. `tools/_check_harness.js` parses the
+module without a browser and turns it into a line number in under a second.
+**Any headless harness whose readiness is a flag needs a parse check.**
+
+### 69. `pkill -f <script>` matches the shell that issued it
+`pkill -f run-tests.js` kills the bash process whose own command line
+contains that string. Exit 144, no output, looks like a crash in the thing
+you were trying to clean up after.
+
+### 70. When every cell of a sweep looks identical, check what you varied
+I concluded from an eight-cell light sweep that no scene light reached a
+body. It did — the GROUND was what changed across those cells, and the body
+was being drowned by its own emissive. **A null result is only evidence if
+the experiment moved the thing you think it moved.** Add a control cell that
+is *supposed* to differ; if it doesn't, the rig is what's broken.

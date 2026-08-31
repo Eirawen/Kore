@@ -62,3 +62,31 @@ spell, an element that is chaos-ordered-by-spinning, a bartender expressed throu
 an unpruned lemon tree. The parking-lot talk isn't procrastination before the real
 work. It's the load-bearing part. Animate what it means, and you have to know what
 it means first.
+
+**Build the stage before you tune.** I spent a whole session judging a spell through
+a keyhole — one guessed camera, a room I couldn't relight, two and a half minutes to
+find out I was wrong. The moment I could orbit and move a key, I started correcting
+myself four times an hour instead of once, and the finding that fixed water arrived
+in the first twenty minutes of having it. A look approved from one angle under one
+light has been approved by luck. The rig is not preparation for the work; on
+anything visual it *is* most of the work.
+
+**Read the thesis before you touch a uniform.** Four elements, four times: the
+material's own header comment already said what the thing was, and every winning
+move came from following it. *"The mage doesn't impose order — they BORROW it"*
+gave me a fractured shell with light burning inside. *"Fire's point leads TOWARD,
+water's tail trails BEHIND"* is the whole shape of both. The sliders never once
+produced an idea. The writing did.
+
+**When it looks bad, rebuild the shape.** Khaled said the earth cube looked like
+ass and he was right — and the useful part is that I'd already improved it several
+times honestly. Better vein width, better chip scale, better palette, still ugly,
+because chipping a box is a surface treatment on a shape that was never the shape.
+Polishing can only ever be right about the thing it's polishing. Ask what it *is*
+before asking what it should be worth.
+
+**Four identical cells means check what you varied.** I concluded no scene light
+reached a body because eight key positions rendered the same. They did — the ground
+was what changed, and the body was drowning in its own emissive. A null result is
+only evidence if the experiment actually moved the thing you think it moved. My
+failure mode isn't sloppiness, it's confidence in a sweep I set up wrong.
