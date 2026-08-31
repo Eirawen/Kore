@@ -12,3 +12,6 @@ hand_final.png
 hand_fist.png
 .playwright-mcp/
 ARCHIVES/
+
+# Blender auto-backups — regenerated on every save, never an asset
+*.blend1
